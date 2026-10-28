@@ -1,0 +1,4 @@
+user_id,email,full_name,phone,ip_address,birth_date,trace_id,message,created_at
+USER_TEST_001,[REDACTED:pii.email],[REDACTED:pii.person_name],[REDACTED:pii.phone],10.0.12.7,[REDACTED:pii.date_of_birth],trc-0001-aaaa,Login failed for [REDACTED:pii.email] from api-1.prod.internal,2026-01-05T10:00:00Z
+USER_TEST_002,[REDACTED:pii.email],[REDACTED:pii.person_name],[REDACTED:pii.phone],192.0.2.44,[REDACTED:pii.date_of_birth],trc-0002-bbbb,"Timeout calling billing.svc.internal, retry 3",2026-01-05T10:01:12Z
+USER_TEST_003,[REDACTED:pii.email],[REDACTED:pii.person_name],,10.0.12.9,[REDACTED:pii.date_of_birth],trc-0003-cccc,"Profile updated, fields: email, phone",2026-01-05T10:02:45Z

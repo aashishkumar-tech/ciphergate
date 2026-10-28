@@ -1,0 +1,41 @@
+# TEMPLATE REQUIRING REVIEW. Trusted local debugging (destination pinned to local_dev).
+# More permissive than other templates for debugging context, but hard constraints remain:
+# credentials are removed, and PRD-origin data is blocked from local_dev by the built-in
+# production-to-non-production guardrail unless a reviewed transfer approval exists.
+policy_version: 1
+name: local-debug
+metadata:
+  description: "Any non-production source -> local_dev. Keeps identifiers useful for local debugging. Template requiring review."
+context:
+  target_environment: dev
+  destination: local_dev
+  use_case: debugging
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: redact-credentials
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: credentials_never_kept
+
+  - id: keep-debug-identifiers
+    priority: 400
+    match:
+      categories: [network.telemetry, pii.ip_address, pii.customer_identifier, pii.device_identifier]
+    action: allow
+    reason: local_debugging_needs_correlation
+
+  - id: redact-contact-and-sensitive
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

@@ -1,0 +1,83 @@
+# TEMPLATE REQUIRING REVIEW. Financial/payment data. NOT a PCI DSS compliance control: card-like
+# pattern checks are incomplete and do not determine PCI scope.
+# Requires CIPHERGATE_HMAC_KEY for account pseudonyms.
+policy_version: 1
+name: financial-template
+metadata:
+  description: "Distinguishes credentials, card data, bank/account identifiers, transaction metadata and amounts. Not a compliance claim. Template requiring review."
+context:
+  domain_profile: financial
+requirements:
+  environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+classifications:
+  - id: amounts
+    field_names: [amount, transaction_amount, total]
+    category: financial.sensitive
+    confidence: 0.9
+rules:
+  - id: block-credentials
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: block
+    reason: credentials_never_in_financial_exports
+
+  - id: block-card-data-untrusted
+    hard: true
+    priority: 1000
+    match:
+      categories: [pii.payment_card]
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+    action: block
+    reason: card_data_never_leaves_for_untrusted_destinations
+
+  - id: redact-card-data
+    priority: 900
+    match:
+      categories: [pii.payment_card]
+    action: redact
+    reason: never_keep_card_numbers
+
+  - id: redact-bank-accounts
+    priority: 800
+    match:
+      categories: [pii.bank_account, pii.government_id]
+    action: redact
+    reason: remove_bank_identifiers
+
+  - id: pseudonymize-account-ids
+    priority: 500
+    match:
+      categories: [pii.customer_identifier]
+    action: pseudonymize
+    params:
+      scope: field
+      prefix: "acct_"
+    reason: keep_joins_without_real_account_ids
+
+  - id: bin-amounts
+    priority: 400
+    match:
+      categories: [financial.sensitive]
+    action: generalize
+    params:
+      strategy: numeric_bin
+      bins: [0, 10, 100, 1000, 10000, 100000]
+    reason: keep_magnitude_not_exact_amount
+
+  - id: redact-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, employment.sensitive, network.telemetry, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

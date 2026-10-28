@@ -1,0 +1,68 @@
+# TEMPLATE REQUIRING REVIEW. STG data for staging tests. Staging data is treated as potentially
+# production-derived: identifiers are replaced or redacted, credentials are removed.
+policy_version: 1
+name: stg-test
+metadata:
+  description: "STG source -> staging_test destination. Prefers synthetic replacements; treats staging data as possibly production-derived. Template requiring review."
+context:
+  environment: stg
+  target_environment: stg
+  destination: staging_test
+  domain_profile: test_dataset
+  use_case: test_fixture
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: redact-credentials
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: staging_credentials_are_still_secrets
+
+  - id: synthetic-email
+    priority: 400
+    match:
+      categories: [pii.email]
+    action: replace
+    params:
+      value: "user@example.invalid"
+    reason: synthetic_email
+
+  - id: synthetic-name
+    priority: 400
+    match:
+      categories: [pii.person_name]
+    action: replace
+    params:
+      value: "Test Person"
+    reason: synthetic_name
+
+  - id: dob-to-year
+    priority: 400
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: keep_birth_year_only
+
+  - id: keep-telemetry
+    priority: 300
+    match:
+      categories: [network.telemetry]
+    action: allow
+    reason: staging_debug_context
+
+  - id: redact-other-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

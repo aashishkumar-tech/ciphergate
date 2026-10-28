@@ -1,0 +1,3 @@
+{"ts": "2026-01-05T10:00:00Z", "level": "ERROR", "trace_id": "trc-0001-aaaa", "user_id": "USER_TEST_001", "msg": "Payment declined for alice.test@example.com", "host": "api-1.prod.internal"}
+{"ts": "2026-01-05T10:00:02Z", "level": "WARN", "trace_id": "trc-0001-aaaa", "user_id": "USER_TEST_001", "msg": "Retrying via 10.0.12.7", "latency_ms": 1532}
+{"ts": "2026-01-05T10:00:05Z", "level": "INFO", "trace_id": "trc-0002-bbbb", "user_id": "USER_TEST_002", "msg": "Order completed", "items": 2, "retry": false}

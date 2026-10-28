@@ -1,0 +1,66 @@
+# TEMPLATE REQUIRING REVIEW. Strict external-AI posture for any supported source environment.
+# Key-free: identifiers are redacted. Unclassified suspicious values block the release.
+# A successful run does not mean the output is safe for any particular AI provider.
+policy_version: 1
+name: external-ai
+metadata:
+  description: "Any source environment -> external_ai. Strict redaction posture. Template requiring review."
+context:
+  target_environment: external
+  destination: external_ai
+  use_case: external_llm
+requirements:
+  environment: true
+  target_environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: block
+  rescan:
+    enabled: true
+rules:
+  - id: block-credentials
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: block
+    reason: credentials_not_permitted_for_external_ai
+
+  - id: prd-guardrail-regulated
+    guardrail: true
+    priority: 800
+    match:
+      environments: [prd]
+      destinations: [external_ai]
+      categories: [pii.payment_card, pii.government_id, pii.bank_account, health.phi]
+    action: block
+    reason: production_regulated_data_never_sent_to_external_ai
+
+  - id: dob-year
+    priority: 300
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: preserve_year_only
+
+  - id: redact-everything-identifying
+    priority: 200
+    match:
+      categories:
+        - pii.*
+        - health.phi
+        - financial.sensitive
+        - employment.sensitive
+        - network.telemetry
+        - security.internal
+        - proprietary.source
+    action: redact
+    reason: remove_before_external_sharing
+
+defaults:
+  date.generic:
+    action: allow

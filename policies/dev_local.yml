@@ -1,0 +1,48 @@
+# TEMPLATE REQUIRING REVIEW. DEV-origin data for local debugging on a developer machine.
+# Local execution does not make data safe: credentials and personal data are still removed.
+policy_version: 1
+name: dev-local
+metadata:
+  description: "DEV source -> local_dev destination. Keeps debugging context; removes credentials and personal data. Template requiring review."
+context:
+  environment: dev
+  target_environment: dev
+  destination: local_dev
+  domain_profile: developer_logs
+  use_case: debugging
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: redact-credentials
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: credentials_never_kept_even_locally
+
+  - id: keep-debug-telemetry
+    priority: 400
+    match:
+      categories: [network.telemetry, pii.ip_address]
+    action: allow
+    reason: internal_hosts_and_ips_needed_for_local_debugging
+
+  - id: redact-email
+    priority: 300
+    match:
+      categories: [pii.email]
+    action: redact
+    reason: remove_email
+
+  - id: redact-other-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

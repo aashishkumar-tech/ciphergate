@@ -1,0 +1,108 @@
+# TEMPLATE REQUIRING REVIEW. One policy whose outcomes depend on the declared source environment
+# AND the destination (they are independent dimensions). Context is never pinned: every run must
+# supply --environment, --target-environment and --destination. Used by the environment matrix
+# tests and examples (docs/examples.md).
+policy_version: 1
+name: multi-environment
+metadata:
+  description: "Environment- and destination-aware rules for DEV/STG/PRD transfers. Template requiring review."
+requirements:
+  environment: true
+  target_environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: block-credentials-untrusted
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+    action: block
+    reason: credentials_not_permitted_for_destination
+
+  - id: block-credentials-from-prd
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+      environments: [prd]
+    action: block
+    reason: production_credentials_never_leave_production
+
+  - id: redact-credentials
+    priority: 900
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: remove_credential
+
+  - id: prd-external-guardrail
+    guardrail: true
+    priority: 800
+    match:
+      environments: [prd]
+      destinations: [external_vendor, external_ai, public_repository]
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, network.telemetry, security.internal]
+    action: redact
+    reason: strict_production_export
+
+  - id: monitoring-trace-allowlist
+    priority: 500
+    match:
+      categories: [network.telemetry]
+      field_names: [trace_id, request_id, correlation_id]
+      environments: [prd]
+      destinations: [production_monitoring]
+    action: allow
+    reason: monitoring_needs_trace_correlation
+
+  - id: internal-email-dev-stg
+    priority: 500
+    match:
+      categories: [pii.email]
+      environments: [dev, stg]
+      destinations: [local_dev, approved_internal, staging_test]
+    action: replace
+    params:
+      value: "user@example.invalid"
+    reason: synthetic_email_for_non_production_use
+
+  - id: internal-email-prd
+    priority: 500
+    match:
+      categories: [pii.email]
+      environments: [prd]
+      destinations: [approved_internal, production_monitoring]
+    action: redact
+    reason: production_email_removed_even_internally
+
+  - id: keep-telemetry-internal-nonprod
+    priority: 400
+    match:
+      categories: [network.telemetry]
+      environments: [dev, stg]
+      destinations: [local_dev, approved_internal, staging_test]
+    action: allow
+    reason: internal_debug_context
+
+  - id: redact-telemetry-otherwise
+    priority: 300
+    match:
+      categories: [network.telemetry, security.internal]
+    action: redact
+    reason: hide_internal_infrastructure
+
+  - id: redact-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow
