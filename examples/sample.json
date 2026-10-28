@@ -1,0 +1,26 @@
+{
+  "service": "checkout-api",
+  "environment_label": "synthetic-fixture",
+  "users": [
+    {
+      "user_id": "USER_TEST_001",
+      "email": "alice.test@example.com",
+      "profile": {"first_name": "Alice", "last_name": "Example", "dob": "1990-04-12"},
+      "last_login_ip": "10.0.12.7",
+      "orders": 3,
+      "active": true,
+      "notes": null
+    },
+    {
+      "user_id": "USER_TEST_002",
+      "email": "bob.test@example.org",
+      "profile": {"first_name": "Bob", "last_name": "Sample", "dob": "1985-11-30"},
+      "last_login_ip": "192.0.2.44",
+      "orders": 0,
+      "active": false,
+      "notes": ""
+    }
+  ],
+  "request_id": "req-TEST-0001",
+  "message": "Checkout failed for bob.test@example.org via payments.svc.internal"
+}

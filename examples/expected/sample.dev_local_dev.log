@@ -1,0 +1,6 @@
+2026-01-05T10:00:00Z INFO  api-1.prod.internal request_id=req-TEST-0001 GET /health 200
+2026-01-05T10:00:01Z ERROR api-1.prod.internal login failed for [REDACTED:pii.email] from 10.0.12.7
+2026-01-05T10:00:02Z DEBUG config loaded: db_password=[REDACTED:credential.secret]
+2026-01-05T10:00:03Z DEBUG outbound call with Authorization: Bearer [REDACTED:credential.secret]
+2026-01-05T10:00:04Z WARN  callback number [REDACTED:pii.phone] unreachable
+2026-01-05T10:00:05Z INFO  request completed in 152ms

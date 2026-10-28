@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+# Byte-exact fixtures: never convert line endings.
+examples/** -text

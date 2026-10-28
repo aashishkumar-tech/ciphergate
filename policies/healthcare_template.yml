@@ -1,0 +1,95 @@
+# TEMPLATE REQUIRING REVIEW. Healthcare-style records. NOT a HIPAA de-identification method:
+# neither Safe Harbor nor Expert Determination is satisfied by using this file. Clinical free
+# text, rare conditions, small geographies and quasi-identifier combinations can remain
+# identifying. Expert review of re-identification risk and legal requirements is needed.
+# Requires CIPHERGATE_HMAC_KEY for patient pseudonyms and per-patient date shifting.
+policy_version: 1
+name: healthcare-template
+metadata:
+  description: "Separates patient identifiers from clinical values. Not a compliance claim. Template requiring review."
+context:
+  domain_profile: healthcare
+requirements:
+  environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+custom_categories:
+  - health.clinical_date
+classifications:
+  - id: clinical-dates
+    field_names: [admission_date, discharge_date, visit_date, procedure_date]
+    category: health.clinical_date
+    confidence: 0.9
+rules:
+  - id: block-credentials
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: block
+    reason: credentials_never_in_health_exports
+
+  - id: block-clinical-values-external
+    guardrail: true
+    priority: 800
+    match:
+      environments: [prd, stg, unknown]
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+      categories: [health.phi]
+      field_names: [diagnosis, medication, medications, condition, allergies, prescription, clinical_notes, icd_code, procedure_code]
+    action: block
+    reason: clinical_values_need_expert_review_before_external_release
+
+  - id: pseudonymize-patient-ids
+    priority: 500
+    match:
+      field_names: [patient_id, mrn, medical_record_number, member_id]
+      categories: [health.phi, pii.customer_identifier]
+    action: pseudonymize
+    params:
+      scope: entity
+      entity: patient
+      prefix: "pt_"
+    reason: linkable_patient_key_without_real_identifier
+
+  - id: review-clinical-values
+    priority: 400
+    match:
+      field_names: [diagnosis, medication, medications, condition, allergies, prescription, clinical_notes]
+      categories: [health.phi]
+    action: review
+    reason: clinical_values_require_human_decision
+
+  - id: shift-clinical-dates
+    priority: 300
+    match:
+      categories: [health.clinical_date]
+    action: date_shift
+    params:
+      max_days: 30
+      scope: entity
+      entity_field: patient_id
+    reason: preserve_intervals_per_patient
+
+  - id: dob-year
+    priority: 300
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: keep_birth_year_only
+
+  - id: redact-identifiers
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, network.telemetry, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

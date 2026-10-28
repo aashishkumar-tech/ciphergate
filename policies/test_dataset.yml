@@ -1,0 +1,71 @@
+# TEMPLATE REQUIRING REVIEW. Test datasets built from real-looking records.
+# Stable keyed pseudonyms preserve joins across rows/files (requires CIPHERGATE_HMAC_KEY);
+# names become synthetic values; dates of birth keep only the year.
+policy_version: 1
+name: test-dataset
+metadata:
+  description: "Test dataset preparation with stable keyed pseudonyms for joins. Template requiring review."
+context:
+  domain_profile: test_dataset
+  use_case: test_fixture
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: block-credentials-untrusted
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+    action: block
+    reason: credentials_not_permitted_for_destination
+
+  - id: redact-credentials
+    priority: 900
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: remove_credential
+
+  - id: pseudonymize-customer
+    priority: 400
+    match:
+      categories: [pii.customer_identifier, pii.email]
+    action: pseudonymize
+    params:
+      scope: entity
+      entity: customer
+      prefix: "cust_"
+      normalize: casefold_nfc
+    reason: stable_join_key_across_rows
+
+  - id: synthetic-name
+    priority: 400
+    match:
+      categories: [pii.person_name]
+    action: replace
+    params:
+      value: "Test Person"
+    reason: synthetic_name
+
+  - id: dob-year
+    priority: 400
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: keep_birth_year_only
+
+  - id: redact-rest
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, network.telemetry, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

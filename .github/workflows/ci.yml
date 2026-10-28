@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs of the same branch/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-safety:
+    name: repo safety (secrets, forbidden paths, PR title)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install -e .
+      - name: Scan tracked files (contents are never printed)
+        run: python scripts/git_safety_check.py --all
+      - name: Conventional Commits PR title
+        if: github.event_name == 'pull_request'
+        env:
+          # Passed via env, never interpolated into the script (prevents injection).
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python scripts/check_commit_msg.py --title "$PR_TITLE"
+
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.12"
+          - os: macos-latest
+            python: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Format check
+        run: ruff format --check src tests scripts
+      - name: Lint
+        run: ruff check src tests scripts
+      - name: Type check
+        run: mypy
+      - name: Validate shipped policies
+        shell: bash
+        run: for f in policies/*.yml src/ciphergate/templates/*.yml; do ciphergate validate-policy "$f"; done
+      - name: Tests with coverage
+        run: python -m pytest -q --cov=ciphergate --cov-report=term --cov-fail-under=85
+
+  install-smoke:
+    name: clean wheel install + CLI smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist
+      - name: Install wheel into a fresh venv and run the README workflow
+        shell: bash
+        run: |
+          python -m venv /tmp/cg
+          /tmp/cg/bin/pip install dist/*.whl
+          export PATH=/tmp/cg/bin:$PATH
+          cd "$(mktemp -d)"
+          cp -r "$GITHUB_WORKSPACE/examples" "$GITHUB_WORKSPACE/policies" .
+          ciphergate --version
+          ciphergate --help > /dev/null
+          ciphergate init --output ciphergate-policy.yml
+          ciphergate validate-policy ciphergate-policy.yml
+          # Ephemeral, per-run synthetic key; never printed or stored.
+          export CIPHERGATE_HMAC_KEY="hex:$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          ciphergate inspect examples/sample.csv --policy policies/developer_logs.yml --environment dev --destination local_dev --report inspection.json
+          ciphergate plan examples/sample.jsonl --policy policies/external_ai.yml --environment prd --target-environment external --destination external_ai
+          ciphergate sanitize examples/sample.csv --policy policies/prd_external_ai.yml --environment prd --target-environment external --destination external_ai --output build/sample.sanitized.csv --report build/sample.report.json --apply
+          ciphergate rescan build/sample.sanitized.csv --policy policies/prd_external_ai.yml --environment prd --target-environment external --destination external_ai
+          # A blocked release must exit 1 and publish nothing.
+          set +e; ciphergate sanitize examples/sample.log --policy policies/prd_external_ai.yml --output build/blocked.log --apply; code=$?; set -e
+          test "$code" -eq 1 && test ! -e build/blocked.log

@@ -1,0 +1,63 @@
+# Changelog
+
+All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/);
+versioning: [SemVer](https://semver.org/) (pre-1.0: minor versions may break).
+
+## [Unreleased]
+
+### Added
+
+- Repository workflow: `scripts/git_safety_check.py` (protected-branch, forbidden-path, size and
+  secret-pattern checks with a hashed allowlist), `scripts/check_commit_msg.py` (Conventional
+  Commits), pre-commit `git-safety`/`commit-msg` hooks, a `repo-safety` CI job with PR-title
+  check, PR template, issue forms, Dependabot, and the `/git-workflow` Claude Code skill.
+
+## [0.1.0] - not yet released
+
+First implementation. Alpha; license not yet selected (release blocked on that).
+
+### Added
+
+- `ciphergate` CLI: `init`, `validate-policy`, `inspect`, `plan`, `sanitize --apply`, `rescan`,
+  `explain`, `--version`; documented exit codes 0–8 and 130.
+- Python API: `load_policy`, `validate_policy`, `inspect_file`, `plan_file`, `sanitize_file`,
+  `rescan_file`.
+- Readers/writers for CSV, JSON, JSONL/NDJSON and text/log with size, line, depth and findings
+  limits; strict UTF-8 by default.
+- Detectors: field names, policy classifications, email, phone, IPv4/IPv6, Luhn cards, dates/DOB,
+  secrets (incl. multi-line PEM blocks), internal hosts, custom regex with safety heuristics.
+- Policy schema v1 (pydantic, unknown keys rejected), safe YAML loader, computed precedence
+  levels, conflict rejection, credential hard constraints, risky-allow acknowledgement,
+  environment/destination context with pinning and explicit overrides, run-level guardrails
+  (PRD -> non-production, strict + rescan for external/unknown/prd targets), reviewed transfer
+  approvals.
+- Actions: allow, redact, replace, pseudonymize (HMAC-SHA-256, transform version `pz1`),
+  generalize, date_shift, drop_field, drop_record, block, review. `tokenize` rejected.
+- Two-pass sanitize with plan/apply consistency check, residual rescan gate, input-change
+  detection and atomic, no-overwrite publishing.
+- Privacy-safe JSON (`ciphergate.report/v1`) and text reports.
+- Policy templates: dev_local, stg_test, prd_external_ai, developer_logs, test_dataset,
+  external_ai, healthcare_template, financial_template, local_debug, multi_environment.
+- Synthetic examples with expected outputs; docs; CI workflow; Claude Code skills, subagents and
+  hooks for development.
+
+### Security fixes before first release (from an independent review)
+
+- CSV header cells are now scanned, transformed (allow/drop_field/block/review), rescanned and
+  hidden in reports when they produce a finding; previously the header was published unscanned.
+- The rescan gate can no longer be emptied: `fail_on_categories: []` is rejected,
+  `credential.secret` always gates, and untrusted destinations gate on every high-risk category.
+- A missing destination is treated as untrusted by run-level gates (strict + rescan required).
+- `secret_pattern`/`field_name` cannot be disabled for strict/untrusted/transfer policies or runs.
+- JSON keys must be scanned for untrusted destinations; all templates set `scan_json_keys: true`.
+- Custom categories in high-risk families are high-risk; external/unknown target environments
+  count as untrusted for `allow` acknowledgement.
+- Transfer approvals must name every supplied context dimension; future `approved_on` rejected.
+- Temp-file cleanup failures are logged; a report-write failure after publishing says so.
+- `developer_logs` keeps identifiers for internal destinations only for DEV/STG-origin data.
+- CSV writer quotes rows containing a lone CR/LF (previously such a value could be corrupted).
+
+### Known limitations
+
+See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
+directory processing, structured log parsers, key files, reversible token vault, lossy decoding.

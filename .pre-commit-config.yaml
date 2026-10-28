@@ -1,0 +1,33 @@
+# Local hooks only: they use the tools installed in your environment (pip install -e ".[dev]"),
+# so pre-commit does not download hook repositories.
+# Install: pre-commit install --hook-type pre-commit --hook-type commit-msg
+default_stages: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      - id: git-safety
+        name: git safety (protected branch, forbidden paths, secret patterns)
+        entry: python scripts/git_safety_check.py --staged --require-feature-branch
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: conventional-commit
+        name: conventional commit message
+        entry: python scripts/check_commit_msg.py
+        language: system
+        stages: [commit-msg]
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check
+        language: system
+        types: [python]
+      - id: validate-policies
+        name: ciphergate validate-policy
+        entry: python -c "import sys, subprocess; sys.exit(max([subprocess.call(['ciphergate', 'validate-policy', '--quiet', f]) for f in sys.argv[1:]] or [0]))"
+        language: system
+        files: ^(policies/.*|src/ciphergate/templates/.*)\.ya?ml$

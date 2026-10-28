@@ -1,0 +1,34 @@
+{
+  "service": "checkout-api",
+  "environment_label": "synthetic-fixture",
+  "users": [
+    {
+      "user_id": "USER_TEST_001",
+      "email": "[REDACTED:pii.email]",
+      "profile": {
+        "first_name": "[REDACTED:pii.person_name]",
+        "last_name": "[REDACTED:pii.person_name]",
+        "dob": "[REDACTED:pii.date_of_birth]"
+      },
+      "last_login_ip": "10.0.12.7",
+      "orders": 3,
+      "active": true,
+      "notes": null
+    },
+    {
+      "user_id": "USER_TEST_002",
+      "email": "[REDACTED:pii.email]",
+      "profile": {
+        "first_name": "[REDACTED:pii.person_name]",
+        "last_name": "[REDACTED:pii.person_name]",
+        "dob": "[REDACTED:pii.date_of_birth]"
+      },
+      "last_login_ip": "192.0.2.44",
+      "orders": 0,
+      "active": false,
+      "notes": ""
+    }
+  ],
+  "request_id": "req-TEST-0001",
+  "message": "Checkout failed for [REDACTED:pii.email] via payments.svc.internal"
+}

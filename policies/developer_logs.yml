@@ -1,0 +1,76 @@
+# TEMPLATE REQUIRING REVIEW. General developer-log policy for any source environment.
+# Key-free (redaction only). Context must be supplied per run: --environment and --destination.
+# Internal hosts, private IPs, user IDs and trace IDs are kept only for trusted internal
+# destinations; credentials block for untrusted destinations and are redacted elsewhere.
+policy_version: 1
+name: developer-logs
+metadata:
+  description: "Developer logs for any environment; destination decides what debugging context survives. Template requiring review."
+context:
+  domain_profile: developer_logs
+  use_case: debugging
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: review
+rules:
+  - id: block-credentials-untrusted
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+    action: block
+    reason: credentials_not_permitted_for_destination
+
+  - id: redact-credentials
+    priority: 900
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: remove_credential
+
+  - id: keep-trace-ids-trusted
+    priority: 500
+    match:
+      categories: [network.telemetry]
+      field_names: [trace_id, request_id, correlation_id, span_id, session_id]
+      destinations: [local_dev, approved_internal, production_monitoring]
+    action: allow
+    reason: trace_ids_kept_for_declared_trusted_contexts
+
+  - id: keep-infrastructure-trusted
+    priority: 400
+    match:
+      categories: [network.telemetry, pii.ip_address, pii.customer_identifier]
+      # PRD-origin identifiers are never kept by category alone (CLAUDE.md 4.2.2).
+      environments: [dev, stg]
+      destinations: [local_dev, approved_internal]
+    action: allow
+    reason: internal_debug_context
+
+  - id: redact-infrastructure-elsewhere
+    priority: 400
+    match:
+      categories: [network.telemetry, pii.ip_address, security.internal]
+      destinations: [staging_test, production_monitoring, external_vendor, external_ai, public_repository, unknown]
+    action: redact
+    reason: hide_internal_infrastructure
+
+  - id: redact-email-phone
+    priority: 300
+    match:
+      categories: [pii.email, pii.phone]
+    action: redact
+    reason: remove_contact_details
+
+  - id: redact-other-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, security.internal]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

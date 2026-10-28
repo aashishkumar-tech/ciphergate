@@ -1,0 +1,22 @@
+# Reviewed false positives for scripts/git_safety_check.py.
+# Format: <path> <sha256 of the stripped line>  # reason
+# Only content hashes are stored. Editing a listed line invalidates its entry, so it must be
+# re-reviewed. Never add an entry for a line that contains a real or production credential.
+.claude/skills/policy-review/SKILL.md 14d7fa83749137e5815038b35e20757bad2d16d65995034fb3e80e2c72f7e338  # prose: credential.secret category name
+CLAUDE.md a58ac2bcc6828f8531a0d1b3f61cb58e27c823a857a0aeaa368c91820ffc700a  # spec: list of credential field-name keywords
+CLAUDE.md 63620dc5c9b936caff111a9ea19cb4b36eaf3590fe6a7cc9259a12eb785f3cbe  # spec: description of secret pattern families
+README.md 8845968c83542e8a106a1d0ad5c26004670f4fc6bf11d8ea2604364d3e51be79  # prose: names the assignment-style pattern family
+docs/detector-coverage.md 4e240f58dc354855b6aa99dcd9dbb85fa416de3e67c2feb332d262b82527d976  # docs: truncated pattern shapes (AKIA..., ghp_...)
+src/ciphergate/detectors/secrets.py 0be8dc53c00fa79d0c4bcf0c4a6ec93b23655565c14769042c8056d189f4074f  # docstring: pattern family names
+src/ciphergate/policy/validator.py 42a704681c0164151665c94d0c941063ac75e7662aa73f47525506f4a414fed8  # code: variable named disabled_credential
+src/ciphergate/transforms/pseudonymize.py 70051af9f3d35d758684434e74a4d9f1a20b0c6c9c33d673ffdc5b45fe0a10d9  # docstring: pseudonym token formula
+src/ciphergate/transforms/pseudonymize.py 55a995cad6b8db37dc1936a2f5988c9b126e7900d79dfd76baa5fefd6a340463  # code: base32 digest truncation expression
+src/ciphergate/transforms/pseudonymize.py 47984863cee7ec8f52c12b13adc40ed079edea3a1d6fe3269bfe86c05f52e847  # code: parameter named token
+tests/regression/test_known_cases.py 520433eb817fba0aed065f8e8ee8b030b75417b3ac94c4716350cb9c6f42d0b0  # comment: names the assignment-style pattern family
+tests/security/test_no_raw_value_leaks.py e3292a718093ce87b8ac392d30b3a25e457523a884cc8d3798a974af3d450875  # synthetic PEM header only, no key material
+tests/unit/test_detectors.py 8dd41bfcc41bb957d1ddb943cb9e490d68be6d0416fae3fe00d7eada74a8479e  # synthetic JWT-shaped test vector (not a valid token)
+tests/unit/test_detectors.py 82e1a21d342fa50db55bdaa14ce4bf5dc94ee02114d740a8cc5d5b22a4ae2dec  # code: test function signature with secret parameter
+tests/unit/test_detectors.py ae2260d5177a9f774d9cb9b58ce86126b83761066874be8f0f32ffd70b334994  # synthetic PEM header only, no key material
+tests/unit/test_detectors.py 4677d2b04f4e1fd0196316c7f7cb03f122cbd564580dfc0dad5b4dd015760b2f  # synthetic weak-password test vector
+tests/unit/test_policy_precedence.py 23cf65bc79b43ea83918b553314e74ed1fbd352b03817ba3903082c647bdef85  # YAML test: credential.secret category name
+tests/unit/test_properties.py 5310b9f34731992e6e5fcada291cc7088aa454f2b6dc6e304ebae2dee9ea22e9  # synthetic repeated PEM header (resource-limit test)

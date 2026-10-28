@@ -1,0 +1,102 @@
+# TEMPLATE REQUIRING REVIEW. PRD-origin developer logs shared with an external AI assistant.
+# Strict export posture: credentials block the release, identifiers are pseudonymized or redacted,
+# internal infrastructure is removed, and the residual rescan gate must pass before publication.
+# Requires CIPHERGATE_HMAC_KEY (see docs/security-and-privacy.md). A successful run does not mean
+# the output is safe for any particular AI provider.
+policy_version: 1
+name: prd-external-ai
+metadata:
+  description: "PRD source -> external_ai destination. Strict release gate. Template requiring review."
+context:
+  environment: prd
+  target_environment: external
+  destination: external_ai
+  domain_profile: developer_logs
+  use_case: debugging
+requirements:
+  environment: true
+  target_environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true  # keys can carry data; required for untrusted destinations
+  unknown_sensitive_behavior: block
+  fail_on_parse_error: true
+  rescan:
+    enabled: true
+rules:
+  - id: block-credentials
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: block
+    reason: credentials_are_not_permitted_for_this_destination
+
+  - id: block-payment-and-government-ids
+    hard: true
+    priority: 1000
+    match:
+      categories: [pii.payment_card, pii.government_id, pii.bank_account]
+    action: block
+    reason: regulated_identifiers_never_sent_externally
+
+  - id: pseudonymize-trace-ids
+    priority: 500
+    match:
+      categories: [network.telemetry]
+      field_names: [trace_id, request_id, correlation_id, span_id]
+    action: pseudonymize
+    params:
+      scope: field
+      prefix: "trace_"
+    reason: keep_trace_correlation_without_linkable_ids
+
+  - id: pseudonymize-email
+    priority: 300
+    match:
+      categories: [pii.email]
+      min_confidence: 0.5
+    action: pseudonymize
+    params:
+      scope: category
+      prefix: "email_"
+      normalize: casefold_nfc
+    reason: replace_email_but_keep_repeatable_join_key
+
+  - id: pseudonymize-customer-ids
+    priority: 300
+    match:
+      categories: [pii.customer_identifier, pii.device_identifier]
+    action: pseudonymize
+    params:
+      scope: field
+      prefix: "id_"
+    reason: keep_joins_without_real_ids
+
+  - id: dob-to-year
+    priority: 300
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: preserve_year_only
+
+  - id: redact-infrastructure
+    priority: 250
+    match:
+      categories: [network.telemetry, security.internal, pii.ip_address]
+    action: redact
+    reason: hide_internal_infrastructure
+
+  - id: redact-personal
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive]
+    action: redact
+    reason: remove_identifier
+
+defaults:
+  date.generic:
+    action: allow

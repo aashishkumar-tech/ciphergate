@@ -1,0 +1,42 @@
+# Python / build
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+# Virtual environments
+.venv/
+venv/
+env/
+# Tool caches and coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+# Secrets and keys (never commit)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+# Local / real data and CipherGate outputs (keep synthetic examples/ and policies/)
+data/
+real_data/
+*.sanitized.*
+*.report.json
+ciphergate-policy.yml
+.ciphergate-*.tmp
+# Claude Code machine-local settings
+.claude/settings.local.json
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
