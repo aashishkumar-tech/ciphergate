@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-28
+
+First release (still alpha quality: pre-1.0, interfaces may change). Same software as 0.1.0a1,
+plus a configured security contact. Policy templates still need review for each real workflow
+(#3); a successful run is never proof that output contains no sensitive data.
+
 ### Added
 
 - Security contact in `SECURITY.md` (email), target response times, report scope and
@@ -73,5 +79,6 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...v0.1.0
 [0.1.0a1]: https://github.com/aashishkumar-tech/ciphergate/releases/tag/v0.1.0a1
