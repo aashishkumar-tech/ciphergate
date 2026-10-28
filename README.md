@@ -11,7 +11,7 @@ vendor ticket. CipherGate replaces that with a local, explainable, scriptable ga
 inspect  ->  plan  ->  sanitize --apply  ->  rescan
 ```
 
-> **Status: 0.1.0 (alpha).** No detector finds every sensitive value. A passing run means the
+> **Status: 0.1.0a1 (alpha pre-release).** No detector finds every sensitive value. A passing run means the
 > configured processing completed under the selected policy; it is **not** proof that the output
 > contains no sensitive information, and it is not a compliance (GDPR, HIPAA, PCI DSS, ...) or
 > anonymization guarantee. Policy templates must be reviewed before use.
@@ -206,7 +206,7 @@ ruff check src tests scripts && ruff format --check src tests scripts
 mypy
 ```
 
-## License status
+## License
 
-**No license has been selected yet** ([LICENSE](LICENSE) is a placeholder; all rights reserved).
-The maintainer must choose a license before any public release.
+Licensed under the [Apache License, Version 2.0](LICENSE); see also [NOTICE](NOTICE). The license
+covers the software only: it is not legal advice and makes no compliance claim.

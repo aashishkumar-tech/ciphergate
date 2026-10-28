@@ -10,7 +10,7 @@ Supported public API (everything else is internal and may change without notice)
     rescan_file(path, policy, context=None, strict=None) -> RunReport
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.0a1"
 
 from ciphergate.config import RuntimeSettings
 from ciphergate.constants import (
