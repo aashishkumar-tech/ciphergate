@@ -123,7 +123,7 @@ gh pr checks --watch                            # wait for CI; report failures w
 ## 7. Tracking work in GitHub
 
 - **Issues** for every bug, feature and follow-up (use the issue forms). Security
-  vulnerabilities go through private vulnerability reporting, never a public issue (SECURITY.md).
+  vulnerabilities go to the private contact in SECURITY.md, never a public issue.
 - **Labels**: one type label (`bug enhancement security documentation ci dependencies chore
   tests`), plus `breaking` / `needs-review` / `blocked` where relevant.
 - **Milestones** per release (e.g. `v0.1.0`); every merged PR belongs to one.

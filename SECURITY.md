@@ -2,31 +2,60 @@
 
 ## Reporting a vulnerability
 
-> **Maintainer action required before public release:** no security contact has been
-> configured. Replace this notice with a monitored private channel (for example, GitHub private
-> vulnerability reporting on the hosting repository, or a dedicated security mailbox).
+**Email: [aashishkumar.tech@gmail.com](mailto:aashishkumar.tech@gmail.com)** with the subject
+starting `[ciphergate security]`.
 
-Until then, do not file public issues containing exploit details or real data. Report privately
-to the repository owner through the hosting platform's private reporting feature.
+Report privately. Do **not** open a public issue, pull request or discussion for a
+vulnerability, and do not include exploit details anywhere public before a fix is released.
 
-Please include: affected version, a description of the issue, and reproduction steps using
-**synthetic data only**. Never send real datasets, credentials or keys.
+Examples of what to report:
+
+- raw input values, matched text or HMAC keys leaking through output, reports, logs, errors or
+  tracebacks;
+- fail-open paths, where a missing rule, key, context or configuration lets content through;
+- bypasses of the credential hard constraint, the context gates or the residual rescan gate;
+- unsafe file handling (path aliasing, symlinks, overwrite, partial output on failure);
+- parser or regex resource exhaustion;
+- any network access from the core.
+
+Please include:
+
+- the affected version (`ciphergate --version`) and your OS / Python version;
+- a description of the issue and its impact;
+- reproduction steps, a policy snippet and input that use **synthetic data only**
+  (`example.invalid`, `TEST_ONLY_*`).
+
+**Never send real datasets, production logs, credentials or keys**, even redacted ones. Email is
+not encrypted and no PGP key is offered.
 
 ## What to expect
 
-This is a small project without a dedicated security team. Best effort: acknowledgement within
-7 days, an initial assessment within 30 days, and coordinated disclosure once a fix is available.
-No bug bounty is offered.
+This is a small project without a dedicated security team. Target response times (best effort,
+not a contractual SLA):
+
+| Step | Target |
+|---|---|
+| Acknowledge your report | within 3 business days |
+| Initial assessment and severity | within 10 business days |
+| Fix or mitigation for critical issues | within 30 days of assessment |
+
+You will be kept informed. Disclosure is coordinated: details are published (as a GitHub
+security advisory or release note) once a fix is available, with credit if you want it. No bug
+bounty is offered.
 
 ## Scope
 
-In scope: raw-value or key leakage through output/reports/logs/errors, fail-open policy paths,
-unsafe file handling, parser resource exhaustion, network access from the core.
-Out of scope: detector false negatives on their own (see docs/limitations.md) — but reports of
-missed common patterns are welcome as normal issues with synthetic examples.
+In scope: the examples listed above, in the `ciphergate` package, CLI and shipped policy
+templates. Out of scope: detector false negatives on their own (see `docs/limitations.md`).
+Reports of missed common patterns are welcome as normal issues with synthetic examples.
 
-If a credential was exposed before sanitization, rotate it; CipherGate cannot un-share data.
+If a credential was exposed before sanitization, rotate it: CipherGate cannot un-share data.
 
 ## Supported versions
 
-Only the latest release (currently 0.1.0a1, alpha pre-release) receives fixes.
+| Version | Supported |
+|---|---|
+| 0.1.x (latest pre-release / release) | yes |
+| anything older | no |
+
+Only the latest release receives fixes.
