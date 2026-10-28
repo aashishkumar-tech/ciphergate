@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ciphergate"
+dynamic = ["version"]
+description = "Local-first, environment- and destination-aware inspection and sanitization of logs and test datasets."
+readme = "README.md"
+requires-python = ">=3.11"
+# License intentionally not declared: the maintainer has not selected one yet (see LICENSE).
+authors = [{ name = "CipherGate maintainers" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = [
+    # CLI framework (argument parsing, help, exit codes).
+    "typer>=0.12,<1.0",
+    # Strict, typed policy schema validation.
+    "pydantic>=2.6,<3.0",
+    # Safe YAML loading for human-authored policies.
+    "PyYAML>=6.0,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "build>=1.2",
+    "pre-commit>=3.5",
+]
+
+[project.scripts]
+ciphergate = "ciphergate.cli:main"
+
+[tool.hatch.version]
+path = "src/ciphergate/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ciphergate"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/ciphergate",
+    "policies",
+    "examples",
+    "tests",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "posix_only: test relies on POSIX filesystem semantics",
+]
+
+[tool.coverage.run]
+source = ["ciphergate"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "C4", "SIM", "RUF", "PL"]
+ignore = [
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917", "PLR2004",
+    "S603",  # subprocess calls are reviewed individually; hooks/tests use fixed argv lists
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108", "S311", "PLC0415", "S607"]
+"scripts/**" = ["S607", "T201"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["ciphergate"]
+plugins = ["pydantic.mypy"]
