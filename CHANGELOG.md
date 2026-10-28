@@ -42,6 +42,11 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 - Synthetic examples with expected outputs; docs; CI workflow; Claude Code skills, subagents and
   hooks for development.
 
+### Changed
+
+- CI tests Linux (Python 3.11-3.13) and Windows (3.12); macOS was dropped because hosted
+  runners could not be acquired (#21).
+
 ### Security fixes before first release (from an independent review)
 
 - CSV header cells are now scanned, transformed (allow/drop_field/block/review), rescanned and
