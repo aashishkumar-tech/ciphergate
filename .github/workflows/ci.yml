@@ -43,10 +43,11 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13"]
+        # macOS was removed: hosted macOS runners repeatedly could not be acquired for this
+        # private repository (capacity), and they cost 10x Linux minutes. Linux covers the
+        # POSIX-only paths; Windows covers the Windows-specific ones.
         include:
           - os: windows-latest
-            python: "3.12"
-          - os: macos-latest
             python: "3.12"
     steps:
       - uses: actions/checkout@v4

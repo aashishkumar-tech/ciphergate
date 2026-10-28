@@ -52,7 +52,8 @@
 ## Platform
 
 - POSIX-only behaviours (0600 temp permissions, hard-link no-overwrite publish, directory fsync,
-  FIFO rejection) are tested only on POSIX CI runners. On Windows the publish uses `os.rename`
+  FIFO rejection) are tested only on the Linux CI runners. CI runs on Linux (Python 3.11-3.13)
+  and Windows (3.12); macOS is not tested in CI (it passed once, on the initial PR #12). On Windows the publish uses `os.rename`
   (fails if the target exists) and file ACLs are inherited.
 - Symlink tests are skipped where the OS/user cannot create symlinks.
 
