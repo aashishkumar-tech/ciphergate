@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Security contact in `SECURITY.md` (email), target response times, report scope and
+  supported versions (#2).
+
 ## [0.1.0a1] - 2026-10-28
 
 Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the security contact in
