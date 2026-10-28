@@ -1,24 +1,25 @@
 # Changelog
 
 All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/);
-versioning: [SemVer](https://semver.org/) (pre-1.0: minor versions may break).
+versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pre-1.0: minor versions may break;
+`aN` = alpha pre-release).
 
 ## [Unreleased]
 
+## [0.1.0a1] - 2026-10-28
+
+Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the security contact in
+`SECURITY.md` is still a placeholder (#2), and policy templates need review for real workflows
+(#3).
+
 ### Added
 
+- Apache-2.0 license (`LICENSE`, `NOTICE`, package metadata).
 - Repository workflow: `scripts/git_safety_check.py` (protected-branch, forbidden-path, size and
   secret-pattern checks with a hashed allowlist), `scripts/check_commit_msg.py` (Conventional
   Commits), pre-commit `git-safety`/`commit-msg` hooks, a `repo-safety` CI job with PR-title
   check, PR template, issue forms, Dependabot, and the `/git-workflow` Claude Code skill.
-
-## [0.1.0] - not yet released
-
-First implementation. Alpha; license not yet selected (release blocked on that).
-
-### Added
-
-- `ciphergate` CLI: `init`, `validate-policy`, `inspect`, `plan`, `sanitize --apply`, `rescan`,
+- `ciphergate` CLI (first implementation, #12): `init`, `validate-policy`, `inspect`, `plan`, `sanitize --apply`, `rescan`,
   `explain`, `--version`; documented exit codes 0–8 and 130.
 - Python API: `load_policy`, `validate_policy`, `inspect_file`, `plan_file`, `sanitize_file`,
   `rescan_file`.
@@ -61,3 +62,6 @@ First implementation. Alpha; license not yet selected (release blocked on that).
 
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
+
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...HEAD
+[0.1.0a1]: https://github.com/aashishkumar-tech/ciphergate/releases/tag/v0.1.0a1

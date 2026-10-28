@@ -29,4 +29,4 @@ If a credential was exposed before sanitization, rotate it; CipherGate cannot un
 
 ## Supported versions
 
-Only the latest release (currently 0.1.0, alpha) receives fixes.
+Only the latest release (currently 0.1.0a1, alpha pre-release) receives fixes.
