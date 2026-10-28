@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a detector, policy capability, format or workflow improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What workflow does this enable (source environment, destination, data type)?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: CLI/policy shape, and how it fails closed when misconfigured.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Security and privacy considerations
+      description: New dependencies, network use, data exposure, false-assurance risk.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: Examples in this request are synthetic.
+          required: true

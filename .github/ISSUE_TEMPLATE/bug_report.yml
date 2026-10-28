@@ -1,0 +1,47 @@
+name: Bug report
+description: Incorrect behaviour of the CLI, library, detectors or policy engine.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste real data, secrets, keys, reports from real inputs, or full logs.**
+        Reproduce with synthetic values (`example.invalid`, `TEST_ONLY_*`).
+        Security vulnerabilities (leaks, fail-open behaviour, bypasses) must be reported
+        privately; see SECURITY.md. Do not open a public issue for them.
+  - type: input
+    id: version
+    attributes:
+      label: CipherGate version
+      description: Output of `ciphergate --version`
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Python version
+      placeholder: "Ubuntu 24.04, Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce (synthetic data only)
+      description: Command line, policy snippet and a minimal synthetic input.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behaviour
+      description: Include exit code, run status and reason codes (never matched values).
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: This report contains no real personal data, credentials or production content.
+          required: true
