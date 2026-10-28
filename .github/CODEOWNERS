@@ -1,0 +1,11 @@
+# Every change needs review by the owner. Security-sensitive paths are listed explicitly so they
+# stay owned if more maintainers are added later.
+*                                   @aashishkumar-tech
+/src/ciphergate/policy/             @aashishkumar-tech
+/src/ciphergate/transforms/         @aashishkumar-tech
+/src/ciphergate/pipeline/           @aashishkumar-tech
+/src/ciphergate/reporting/          @aashishkumar-tech
+/policies/                          @aashishkumar-tech
+/scripts/                           @aashishkumar-tech
+/.github/                           @aashishkumar-tech
+/.claude/                           @aashishkumar-tech
