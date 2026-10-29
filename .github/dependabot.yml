@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # pyproject.toml declares supported ranges for a library, not pins: only widen a range when a
+    # new release falls outside it. Raising a lower bound needs a reason and an update of
+    # ci/constraints-min.txt (tested by the min-deps CI job).
+    versioning-strategy: increase-if-necessary
     labels: [dependencies]
     commit-message:
       prefix: build
@@ -15,5 +19,9 @@ updates:
     schedule:
       interval: weekly
     labels: [dependencies, ci]
+    # Actions are pinned to commit SHAs; Dependabot updates the SHA and its version comment.
+    groups:
+      github-actions:
+        patterns: ["*"]
     commit-message:
       prefix: ci

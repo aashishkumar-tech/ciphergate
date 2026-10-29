@@ -1,0 +1,6 @@
+# Lowest supported runtime dependency versions; must equal the lower bounds in pyproject.toml
+# (tests/tooling/test_ci_supply_chain.py checks this). The `min-deps` CI job runs the suite
+# with these pins so a floor that no longer works fails CI instead of breaking users.
+typer==0.19.0
+pydantic==2.6.0
+PyYAML==6.0.1
