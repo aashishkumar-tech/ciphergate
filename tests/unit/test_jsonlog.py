@@ -15,14 +15,9 @@ from ciphergate.constants import InputFormat
 from ciphergate.errors import TransformError
 from ciphergate.pipeline.sanitizer import SanitizeOptions
 from ciphergate.policy.validator import Policy
-from ciphergate.readers import jsonlog_reader
-from ciphergate.readers.jsonlog_reader import (
-    MAX_CANDIDATES,
-    SpanCodec,
-    parse_regions,
-    region_tokens,
-    snap_span,
-)
+from ciphergate.readers import line_structure
+from ciphergate.readers.jsonlog_reader import JSONLOG_STRUCTURE, MAX_CANDIDATES, parse_regions
+from ciphergate.readers.line_structure import SpanCodec, region_tokens, snap_span
 from ciphergate.transforms.keys import KeyProvider
 from tests.conftest import MINIMAL_POLICY, SYNTHETIC_SECRETS, ctx
 
@@ -139,7 +134,7 @@ def test_snap_span() -> None:
 def test_codec_keeps_json_valid() -> None:
     line = '{"s": "a\\"b", "n": 42}'
     regions = parse_regions(line)
-    codec = SpanCodec(regions)
+    codec = SpanCodec(JSONLOG_STRUCTURE, regions)
     s = next(t for t in regions[0].tokens if t.pointer == "/s" and t.kind == "string")
     n = next(t for t in regions[0].tokens if t.kind == "literal")
     assert codec.decode(s.start, s.end, line[s.start : s.end]) == 'a"b'
@@ -295,7 +290,7 @@ def test_drop_field_becomes_review(tmp_path: Path, policy_text: Callable[[str], 
 def test_broken_rewrite_fails_closed(
     tmp_path: Path, policy_text: Callable[[str], Policy], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(jsonlog_reader.SpanCodec, "encode", lambda self, s, e, r: '"')
+    monkeypatch.setattr(line_structure.SpanCodec, "encode", lambda self, s, e, r: '"')
     with pytest.raises(TransformError) as exc:
         _sanitize(tmp_path, LINE + "\n", policy_text(MINIMAL_POLICY))
     assert exc.value.code == "jsonlog_rewrite_invalid"

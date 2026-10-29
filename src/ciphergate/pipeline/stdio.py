@@ -41,6 +41,7 @@ _SUFFIX = {
     InputFormat.TEXT: ".txt",
     InputFormat.LOGFMT: ".log",
     InputFormat.JSONLOG: ".log",
+    InputFormat.ACCESSLOG: ".log",
 }
 
 
@@ -124,7 +125,7 @@ class StdioWorkspace:
 def require_stdin_format(fmt: InputFormat | None, stdin: IO[bytes]) -> InputFormat:
     if fmt is None:
         raise UsageError(
-            "reading stdin ('-') requires --format csv|json|jsonl|text|logfmt|jsonlog",
+            "reading stdin ('-') requires --format csv|json|jsonl|text|logfmt|jsonlog|accesslog",
             code="format_required",
         )
     if stdin.isatty():

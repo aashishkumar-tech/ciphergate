@@ -22,37 +22,17 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
 from typing import Any
 
 from ciphergate.constants import InputFormat
 from ciphergate.readers.json_reader import pointer_escape
+from ciphergate.readers.line_structure import FieldRegion, FieldToken, LineStructure
 from ciphergate.readers.text_reader import TextReader
 
 MAX_CANDIDATES = 16
 _WS = " \t\r\n"
 _NUMBER_RE = re.compile(r"-?(?:0|[1-9][0-9]{0,400})(?:\.[0-9]{1,400})?(?:[eE][+-]?[0-9]{1,5})?")
 _LITERALS = (("true", True), ("false", False), ("null", None))
-
-
-@dataclass(frozen=True, slots=True)
-class JsonToken:
-    """A key or value inside an embedded object. Spans are raw offsets in the line."""
-
-    kind: str  # "key", "string" (value) or "literal" (number/true/false/null value)
-    start: int  # strings: inside the quotes; literals: the literal itself
-    end: int
-    pointer: str  # JSON Pointer within its object (keys: the pointer of their value)
-    key: str | None  # nearest object key (field name), None for top-level array items
-    value: Any  # decoded value (keys: the decoded key)
-    escaped: bool = False  # strings: raw text differs from the decoded value
-
-
-@dataclass(frozen=True, slots=True)
-class JsonRegion:
-    start: int
-    end: int
-    tokens: tuple[JsonToken, ...]
 
 
 class _Invalid(Exception):
@@ -64,7 +44,7 @@ class _Parser:
         self.s = line
         self.n = len(line)
         self.max_depth = max_depth
-        self.tokens: list[JsonToken] = []
+        self.tokens: list[FieldToken] = []
 
     def ws(self, i: int) -> int:
         while i < self.n and self.s[i] in _WS:
@@ -103,17 +83,17 @@ class _Parser:
             return self.array(i, pointer, key, depth + 1)
         if ch == '"':
             value, end, escaped = self.string(i)
-            self.tokens.append(JsonToken("string", i + 1, end - 1, pointer, key, value, escaped))
+            self.tokens.append(FieldToken("string", i + 1, end - 1, pointer, key, value, escaped))
             return end
         for text, literal in _LITERALS:
             if self.s.startswith(text, i):
-                self.tokens.append(JsonToken("literal", i, i + len(text), pointer, key, literal))
+                self.tokens.append(FieldToken("literal", i, i + len(text), pointer, key, literal))
                 return i + len(text)
         m = _NUMBER_RE.match(self.s, i)
         if not m:
             raise _Invalid
         number = json.loads(m.group())
-        self.tokens.append(JsonToken("literal", i, m.end(), pointer, key, number))
+        self.tokens.append(FieldToken("literal", i, m.end(), pointer, key, number))
         return m.end()
 
     def obj(self, i: int, pointer: str, depth: int) -> int:
@@ -127,7 +107,7 @@ class _Parser:
                 raise _Invalid
             key, key_end, escaped = self.string(i)
             child = f"{pointer}/{pointer_escape(key)}"
-            self.tokens.append(JsonToken("key", i + 1, key_end - 1, child, key, key, escaped))
+            self.tokens.append(FieldToken("key", i + 1, key_end - 1, child, key, key, escaped))
             i = self.ws(key_end)
             if i >= self.n or self.s[i] != ":":
                 raise _Invalid
@@ -158,9 +138,9 @@ class _Parser:
             raise _Invalid
 
 
-def parse_regions(line: str, max_depth: int = 64) -> list[JsonRegion]:
+def parse_regions(line: str, max_depth: int = 64) -> list[FieldRegion]:
     """JSON objects embedded in ``line`` (non-overlapping, left to right)."""
-    regions: list[JsonRegion] = []
+    regions: list[FieldRegion] = []
     i = 0
     attempts = 0
     while attempts < MAX_CANDIDATES:
@@ -174,92 +154,24 @@ def parse_regions(line: str, max_depth: int = 64) -> list[JsonRegion]:
         except (_Invalid, RecursionError):
             i = start + 1
             continue
-        regions.append(JsonRegion(start, end, tuple(parser.tokens)))
+        regions.append(FieldRegion(start, end, tuple(parser.tokens)))
         i = end
     return regions
 
 
-def region_tokens(regions: list[JsonRegion]) -> list[JsonToken]:
-    return [t for r in regions for t in r.tokens]
+def _unescape(owner: FieldToken, raw: str) -> Any:
+    try:
+        return json.loads(f'"{raw}"')
+    except ValueError:
+        return raw
 
 
-def token_at(tokens: list[JsonToken], start: int, end: int) -> JsonToken | None:
-    """The token whose span contains ``[start, end)`` (literals: any overlap), if any."""
-    for t in tokens:
-        if t.kind == "literal" and start < t.end and t.start < end:
-            return t
-        if t.kind != "literal" and t.start <= start and end <= t.end:
-            return t
-    return None
+def _escape(owner: FieldToken, text: str) -> str:
+    quoted = json.dumps(text, ensure_ascii=False)
+    return quoted if owner.kind == "literal" else quoted[1:-1]
 
 
-def snap_span(regions: list[JsonRegion], start: int, end: int) -> list[tuple[int, int]]:
-    """Split a span so that no piece crosses JSON syntax.
-
-    Parts outside every region are kept. Inside a region, the span becomes the spans of the
-    value tokens it overlaps (or key tokens, if it overlaps no value); literal tokens are taken
-    whole. A span over punctuation only covers every value of its object; an object with no
-    values yields nothing. A span already inside one string token, or covering
-    one literal exactly, is returned unchanged.
-    """
-    pieces: list[tuple[int, int]] = []
-    cursor = start
-    for region in regions:
-        if region.end <= start or end <= region.start:
-            continue
-        if cursor < region.start:
-            pieces.append((cursor, region.start))
-        lo, hi = max(start, region.start), min(end, region.end)
-        inside = [t for t in region.tokens if t.kind != "key" and lo < t.end and t.start < hi]
-        if not inside:
-            inside = [t for t in region.tokens if t.kind == "key" and lo < t.end and t.start < hi]
-        if not inside:
-            # Only punctuation (e.g. a secret pattern that matched the opening brace): the
-            # finding is about the object itself, so protect every value in it, whole.
-            lo, hi = region.start, region.end
-            inside = [t for t in region.tokens if t.kind != "key"]
-        for t in inside:
-            if t.kind == "literal":
-                pieces.append((t.start, t.end))
-            else:
-                pieces.append((max(lo, t.start), min(hi, t.end)))
-        cursor = region.end
-    if cursor < end:
-        pieces.append((cursor, end))
-    return [p for p in pieces if p[0] < p[1]]
-
-
-class SpanCodec:
-    """Decodes a span to the value a transform sees and re-encodes the replacement for JSON."""
-
-    def __init__(self, regions: list[JsonRegion]) -> None:
-        self.tokens = region_tokens(regions)
-
-    def decode(self, start: int, end: int, raw: str) -> Any:
-        owner = token_at(self.tokens, start, end)
-        if owner is None:
-            return raw
-        if owner.kind == "literal":
-            return owner.value
-        if (start, end) == (owner.start, owner.end):
-            return owner.value
-        try:
-            return json.loads(f'"{raw}"')
-        except ValueError:
-            return raw
-
-    def encode(self, start: int, end: int, replacement: Any) -> str:
-        owner = token_at(self.tokens, start, end)
-        if owner is None:
-            return str(replacement)
-        text = replacement if isinstance(replacement, str) else str(replacement)
-        quoted = json.dumps(text, ensure_ascii=False)
-        return quoted if owner.kind == "literal" else quoted[1:-1]
-
-
-def regions_still_valid(line: str, before: list[JsonRegion], max_depth: int) -> bool:
-    """After rewriting, the line must contain at least as many valid objects as before."""
-    return len(parse_regions(line, max_depth)) >= len(before)
+JSONLOG_STRUCTURE = LineStructure(parse=parse_regions, unescape=_unescape, escape=_escape)
 
 
 class JsonLogReader(TextReader):

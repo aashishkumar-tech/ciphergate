@@ -47,6 +47,12 @@ through `\uXXXX` escapes. Keys that are CipherGate markers or pseudonyms give no
 (their values are still content-scanned). Tests: `tests/unit/test_jsonlog.py`, including a
 property test that jsonlog protects at least the characters text mode protects.
 
+With `--format accesslog` the line scan also runs unchanged; `field_name` plus policy
+classifications run on each access-log field (`remote_addr` maps to `pii.ip_address`,
+`remote_user` to `pii.customer_identifier`) and on each query-string parameter of the request
+and referer. Values with log escapes or percent-encoding are decoded and scanned with every
+detector. Tests: `tests/unit/test_accesslog.py`, including the same superset property.
+
 ## Not detected (deferred)
 
 Person names in free text (only with the optional NER detector), postal addresses in free text, government IDs by value

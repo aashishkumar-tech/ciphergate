@@ -13,6 +13,15 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   field-name heuristics and policy classifications on keys, decoding of escaped values and
   keys). Rewrites are JSON-escaped and re-validated; a rewrite that would break an embedded
   object fails the run. Never selected from the file extension.
+- Access-log format (#39): `--format accesslog` for nginx/Apache common and combined lines.
+  Fields get nginx variable names (`/remote_addr`, `/request/path`, `/http_user_agent`, ...),
+  query parameters of the request and referer become fields (`/request/query/<name>`), and log
+  escapes and percent-encoding are decoded for scanning. Replacements are re-encoded per field
+  and every rewritten line must still parse, or the run fails.
+
+### Changed
+
+- The `remote_user` field name is now classified as `pii.customer_identifier` in every format.
 
 ### Fixed
 
