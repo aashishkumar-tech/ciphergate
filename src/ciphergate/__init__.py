@@ -22,7 +22,7 @@ Supported public API (everything else is internal and may change without notice)
     rescan_directory(root, policy, context=None, *, recursive=False, strict=None) -> BatchReport
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from ciphergate.config import RuntimeSettings
 from ciphergate.constants import (
