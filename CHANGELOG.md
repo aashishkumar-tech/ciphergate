@@ -6,6 +6,20 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- JSON-in-log format (#39): `--format jsonlog` for log lines that embed JSON objects. Each line
+  is scanned exactly like `text`; embedded objects add field context (JSON Pointer paths,
+  field-name heuristics and policy classifications on keys, decoding of escaped values and
+  keys). Rewrites are JSON-escaped and re-validated; a rewrite that would break an embedded
+  object fails the run. Never selected from the file extension.
+
+### Fixed
+
+- Phone numbers inside a value whose field name implies email (for example
+  `email="call 202-555-0143"` in logfmt) are no longer suppressed by the whole-value field-name
+  finding.
+
 ## [0.3.0] - 2026-10-29
 
 Adds the Python API for streams and directories, and fixes a macOS path-safety bug in

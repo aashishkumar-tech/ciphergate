@@ -39,6 +39,14 @@ classifications additionally run on each `key=value` key (covering the whole val
 findings inside a value are attributed to that field. Tests: `tests/unit/test_logfmt.py`,
 including a property test that logfmt findings are a superset of text-mode findings.
 
+With `--format jsonlog` the line scan also runs unchanged; for each JSON object embedded in the
+line, `field_name` plus policy classifications run on every key (covering the whole value), and
+content findings inside a value are attributed to its JSON Pointer. Values and keys that contain
+JSON escapes are also decoded and scanned with every detector, since the raw-text scan cannot see
+through `\uXXXX` escapes. Keys that are CipherGate markers or pseudonyms give no field context
+(their values are still content-scanned). Tests: `tests/unit/test_jsonlog.py`, including a
+property test that jsonlog protects at least the characters text mode protects.
+
 ## Not detected (deferred)
 
 Person names in free text (only with the optional NER detector), postal addresses in free text, government IDs by value

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from ciphergate.constants import ACTION_RANK, Action
 from ciphergate.errors import InternalError, TransformError
@@ -39,6 +39,14 @@ from ciphergate.transforms.redact import redact
 from ciphergate.transforms.replace import replace
 
 EntityLookup = Callable[[str], Any]
+
+
+class SpanCodec(Protocol):
+    """Maps a raw span to the value a transform sees, and a replacement back to raw text."""
+
+    def decode(self, start: int, end: int, raw: str) -> Any: ...
+
+    def encode(self, start: int, end: int, replacement: Any) -> str: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +128,7 @@ class Transformer:
         *,
         field_path: str,
         entity_lookup: EntityLookup | None = None,
+        span_codec: SpanCodec | None = None,
     ) -> ValueOutcome:
         if not evaluated:
             return ValueOutcome(value)
@@ -175,16 +184,18 @@ class Transformer:
                 groups.append([span[0], span[1], finding, decision])
         out = text
         for start, end, finding, decision in reversed(groups):
+            raw = out[start:end]
             replacement = self.apply_action(
                 decision.action,
                 decision.params,
-                out[start:end],
+                span_codec.decode(start, end, raw) if span_codec else raw,
                 category=finding.category,
                 field_path=finding.location.field_path or field_path,
                 in_span=True,
                 entity_lookup=entity_lookup,
             )
-            out = out[:start] + str(replacement) + out[end:]
+            encoded = span_codec.encode(start, end, replacement) if span_codec else str(replacement)
+            out = out[:start] + encoded + out[end:]
         return ValueOutcome(
             out, changed=out != text, type_changed=value_type_name(out) != value_type_name(value)
         )

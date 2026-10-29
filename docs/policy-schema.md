@@ -94,7 +94,7 @@ Classifications: `{id, field_names | field_paths, category, confidence}` — e.g
     destinations: [external_ai]
     domain_profiles: [developer_logs]
     use_cases: [debugging]
-    formats: [csv, json, jsonl, text, logfmt]
+    formats: [csv, json, jsonl, text, logfmt, jsonlog]
     min_confidence: 0.8
     max_confidence: 1.0
   action: pseudonymize

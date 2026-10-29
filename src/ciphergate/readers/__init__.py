@@ -1,4 +1,4 @@
-"""Format adapters (readers + writers) for CSV, JSON, JSONL/NDJSON, text/log and logfmt."""
+"""Format adapters (readers + writers): CSV, JSON, JSONL/NDJSON, text/log, logfmt, JSON-in-log."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from ciphergate.readers.base import Reader, ReaderOptions, Record, Writer
 from ciphergate.readers.csv_reader import CSVReader, CSVWriter
 from ciphergate.readers.json_reader import JSONReader, JSONWriter
 from ciphergate.readers.jsonl_reader import JSONLReader, JSONLWriter
+from ciphergate.readers.jsonlog_reader import JsonLogReader
 from ciphergate.readers.logfmt_reader import LogfmtReader
 from ciphergate.readers.text_reader import TextReader, TextWriter
 
@@ -43,7 +44,7 @@ def detect_format(path: Path, explicit: InputFormat | None = None) -> InputForma
     if fmt is None:
         raise UsageError(
             "cannot infer the input format from this file extension; pass --format "
-            "csv|json|jsonl|text",
+            "csv|json|jsonl|text|logfmt|jsonlog",
             code="format_required",
         )
     if fmt in (InputFormat.JSON, InputFormat.JSONL):
@@ -66,6 +67,8 @@ def open_reader(path: Path, fmt: InputFormat, options: ReaderOptions) -> Reader:
         return JSONLReader(path, options)
     if fmt == InputFormat.LOGFMT:
         return LogfmtReader(path, options)
+    if fmt == InputFormat.JSONLOG:
+        return JsonLogReader(path, options)
     return TextReader(path, options)
 
 

@@ -31,8 +31,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
-  multi-line PEM private-key blocks), and logfmt (`--format logfmt`: `key=value` log lines,
-  see below).
+  multi-line PEM private-key blocks), logfmt (`--format logfmt`: `key=value` log lines) and
+  JSON in log lines (`--format jsonlog`), see below.
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -165,7 +165,7 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text|logfmt`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
@@ -250,7 +250,29 @@ never selected from the file extension (`.log` stays `text`).
   blocks).
 - Keys must start with a letter or `_`; values are bare or double-quoted with backslash escapes.
   A line with broken quoting gets no field context (it is still scanned as text), and lines inside
-  a PEM private key block are never parsed as fields. JSON embedded in log lines is not parsed.
+  a PEM private key block are never parsed as fields. JSON embedded in log lines is not parsed
+  by logfmt; use `jsonlog` for that.
+
+### Structured logs (JSON in log lines)
+
+`--format jsonlog` reads log lines that embed JSON objects, such as
+`2026-01-05T10:00:00Z ERROR login failed {"user": {"email": "alice.test@example.com"}}`. Like
+logfmt, it is never selected from the file extension.
+
+- Every line is still scanned exactly like `text` (property-tested: jsonlog never protects fewer
+  characters than text mode). Each embedded object adds field context: findings inside a value
+  are attributed to it (`field_path` is the JSON Pointer inside the object, e.g. `/user/email`),
+  and field-name heuristics and policy classifications run on every key and cover the whole
+  value. String values and keys containing JSON escapes (`\u0040`) are also decoded and scanned.
+- Output keeps the line as it was; only protected spans change. Replacements are JSON-escaped, a
+  replaced number/boolean/null becomes a JSON string, and every embedded object is re-parsed
+  after rewriting; if one would no longer be valid JSON, the run fails and nothing is published.
+  A match that covers only JSON punctuation (for example a credential assignment right before an
+  object) protects every value of that object.
+- Only objects (`{...}`) are recognised, at most 16 start positions per line, nested at most
+  64 levels (the JSON depth limit). Text that is not valid JSON, and lines inside a PEM private
+  key block, get no field context (they are still scanned as text). `drop_field` is not supported (it
+  becomes `review`; a credential there blocks).
 
 ### Pipes (stdin/stdout)
 
