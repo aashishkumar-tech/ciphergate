@@ -53,6 +53,14 @@ classifications run on each access-log field (`remote_addr` maps to `pii.ip_addr
 and referer. Values with log escapes or percent-encoding are decoded and scanned with every
 detector. Tests: `tests/unit/test_accesslog.py`, including the same superset property.
 
+With `--format syslog` the line scan also runs unchanged; `field_name` plus policy
+classifications run on syslog header fields (`hostname` maps to `network.telemetry`), RFC 5424
+structured-data parameter names, and CEF extension keys. Short CEF keys are also checked under a
+canonical name (`suser` as `source_user_name`, `src` as `source_ip`, `smac` as
+`source_mac_address`, ...) and `csN` fields under their `csNLabel`. Escaped values are decoded
+and scanned with every detector. Tests: `tests/unit/test_syslog.py`, including the same
+superset property.
+
 ## Not detected (deferred)
 
 Person names in free text (only with the optional NER detector), postal addresses in free text, government IDs by value

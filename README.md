@@ -32,8 +32,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
   multi-line PEM private-key blocks), logfmt (`--format logfmt`: `key=value` log lines), JSON
-  in log lines (`--format jsonlog`) and nginx/Apache access logs (`--format accesslog`), see
-  below.
+  in log lines (`--format jsonlog`), nginx/Apache access logs (`--format accesslog`) and
+  syslog/CEF (`--format syslog`), see below.
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -166,7 +166,7 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog|syslog`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
@@ -297,6 +297,37 @@ It is never selected from the file extension.
   recognised: fields after the user agent (such as `$http_x_forwarded_for`), virtual-host
   prefixes and custom layouts get text-mode scanning only. `drop_field` is not supported (it
   becomes `review`).
+
+### syslog and CEF
+
+`--format syslog` reads RFC 5424 and RFC 3164 (BSD) syslog lines, including files written by
+rsyslog (no `<PRI>`, traditional or RFC 3339 timestamps), and CEF records, either bare or as the
+message of a syslog line:
+
+```text
+<34>1 2026-01-05T10:00:00Z web01 billing 4242 ID47 [auth@32473 email="alice.test@example.com"] login failed
+Jan  5 10:00:00 web01 sshd[4242]: Accepted publickey for USER_TEST_001
+<134>Jan 05 10:00:00 fw01 CEF:0|Vendor|Product|1.0|100|Login ok|5|suser=alice.test src=192.0.2.10
+```
+
+It is never selected from the file extension.
+
+- Every line is still scanned exactly like `text` (property-tested). Header fields become
+  `/timestamp`, `/hostname`, `/app_name`, `/procid`, `/msgid`; RFC 5424 structured data becomes
+  `/sd/<sd-id>/<name>`; the message is `/msg`.
+- CEF header fields are `/cef/device_vendor`, `/cef/device_product`, `/cef/device_version`,
+  `/cef/signature_id`, `/cef/event_name` (CEF "Name") and `/cef/severity`; extensions are
+  `/cef/extension/<key>`. Common short keys also get a canonical name for the field-name
+  heuristics (`suser` is read as `source_user_name`, `src` as `source_ip`, `dhost` as
+  `destination_hostname`, ...), and `cs1`-style custom fields use their `cs1Label`. Findings keep
+  the raw key, so `field_names: [suser]` rules apply.
+- Escapes are decoded for scanning and re-applied to replacements: `\"`, `\\`, `\]` in
+  structured data; `\|`, `\\` in CEF headers; `\=`, `\\`, `\n` in CEF extensions.
+  Header fields get `_` for whitespace (an RFC 3164 tag for anything outside
+  `[A-Za-z0-9_./-]`). Each rewritten line must still parse with all its fields, or the run fails.
+- `-` (NILVALUE) fields get no field context. RFC 3164 lines need a `tag:` (or a CEF message) to
+  be recognised; other layouts, LEEF and multi-line messages get text-mode scanning only.
+  `drop_field` is not supported (it becomes `review`).
 
 ### Pipes (stdin/stdout)
 

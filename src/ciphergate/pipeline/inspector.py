@@ -207,13 +207,18 @@ class Analyzer:
                 if token.escaped
                 else detectors.scan_field_context(value_item)
             )
+            if token.hint and not own_key:
+                # A canonical name (e.g. CEF "suser" -> "source_user_name") adds heuristics on
+                # top of the real key; findings keep the real key for policy field_names rules.
+                hint_item = replace(value_item, field_name=token.hint)
+                found += detectors.scan_field_context(hint_item)
             if own_key:
                 found = [f for f in found if f.detector not in FIELD_CONTEXT_DETECTORS]
             for finding in found:
                 location = replace(
                     finding.location, field_path=token.pointer, span=(token.start, token.end)
                 )
-                out.append(replace(finding, location=location))
+                out.append(replace(finding, field_name=token.key, location=location))
         for token in tokens:
             if token.kind == "key" and token.escaped:
                 key_item = ScanItem(item.record_index, item.line, token.pointer, None, token.value)

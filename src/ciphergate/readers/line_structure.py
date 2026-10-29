@@ -24,6 +24,8 @@ class FieldToken:
     key: str | None  # nearest field name, None when the value has no name
     value: Any  # decoded value (keys: the decoded key)
     escaped: bool = False  # raw text differs from the decoded value
+    style: str = ""  # format-specific encoding of the token in the line (for escape/unescape)
+    hint: str | None = None  # canonical field name for field-name heuristics (e.g. CEF "suser")
 
 
 @dataclass(frozen=True, slots=True)

@@ -27,7 +27,7 @@ from ciphergate.models.report import RescanSummary
 from ciphergate.pipeline.inspector import Analyzer, Evaluated, RunSetup
 from ciphergate.pipeline.planner import finding_item
 from ciphergate.readers import STRUCTURED_LINE_FORMATS
-from ciphergate.readers.line_structure import SpanCodec
+from ciphergate.readers.line_structure import SpanCodec, token_at
 from ciphergate.transforms.generalize import matches_generalized_shape
 
 
@@ -68,14 +68,22 @@ def rescan_path(setup: RunSetup, path: Path, *, strict: bool) -> RescanSummary:
         for finding, decision in evaluated:
             span = finding.location.span
             piece = text[span[0] : span[1]] if span else text
+            whole: str | None = None  # the decoded value of the field the finding sits in
             if codec is not None and span is not None:
                 decoded = codec.decode(span[0], span[1], piece)
                 piece = decoded if isinstance(decoded, str) else piece
+                owner = token_at(codec.tokens, span[0], span[1])
+                if owner is not None and owner.kind != "key" and isinstance(owner.value, str):
+                    whole = owner.value
             if decision.action == Action.ALLOW:
                 cls = "allowed"
             elif (
                 is_ciphergate_token(piece)
                 or piece in policy.replacement_values
+                # A pattern can match part of an escaped marker (e.g. "[REDACTED:x\]" in a
+                # syslog SD value); a field that holds exactly our output is recognised.
+                or (whole is not None and is_ciphergate_token(whole))
+                or (whole is not None and whole in policy.replacement_values)
                 or (
                     decision.action == Action.GENERALIZE
                     and isinstance(decision.params, GeneralizeParams)
