@@ -6,6 +6,15 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Python API for streams and directories (#38): `inspect_stream`, `plan_stream`,
+  `rescan_stream` and `sanitize_stream` take binary streams (format required; input spooled to
+  a private, size-capped workspace; output written only after a successful run).
+  `inspect_directory`, `plan_directory`, `rescan_directory` and `sanitize_directory` expose
+  directory runs and return the newly exported `BatchReport`. `sanitize_directory` refuses
+  `force=True`, as the CLI does.
+
 ## [0.2.0] - 2026-10-29
 
 Feature release. Existing policies, reports and single-file behaviour are unchanged, except
