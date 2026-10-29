@@ -171,6 +171,40 @@ Common options: `--policy`, `--format csv|json|jsonl|text|logfmt`, `--report PAT
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
 `--debug` (frames only, never messages/values). `rescan` adds `--strict/--no-strict`.
 
+### Optional local NER (Presidio)
+
+Person names and places in free text are not found by the built-in pattern detectors. An
+optional detector based on [Microsoft Presidio](https://microsoft.github.io/presidio/) can add
+them. It is **off by default** and not part of the base install:
+
+```bash
+python -m pip install "ciphergate[ner]"
+python -m spacy download en_core_web_lg   # one-time, explicit; CipherGate never downloads models
+```
+
+```yaml
+detectors:
+  presidio:
+    enabled: true
+    model: en_core_web_lg        # an installed spaCy model package
+    language: en
+    min_score: 0.6               # Presidio score threshold
+    entities:                    # Presidio entity -> CipherGate category (default shown)
+      PERSON: pii.person_name
+      LOCATION: location.coarse
+```
+
+- If the extra or the model is missing, the run fails with exit 6 (`ner_not_installed` /
+  `ner_model_missing`) and publishes nothing. It never falls back to running without NER. The
+  model is checked before Presidio is imported, because Presidio's spaCy engine would otherwise
+  download a missing model.
+- Findings use detector ID `presidio_ner` and go through the policy like any other finding, so
+  rules decide what happens (`match: {detectors: [presidio_ner]}` works). NER never allows a
+  value, so block and review rules still win.
+- NER misses names and flags non-names. It is slow (every string value goes through spaCy) and
+  memory-hungry, and its scores are Presidio's, not calibrated probabilities. Treat it as extra
+  recall, not proof.
+
 ### Directories (batch runs)
 
 `inspect`, `plan`, `rescan` and `sanitize` accept a directory as INPUT:

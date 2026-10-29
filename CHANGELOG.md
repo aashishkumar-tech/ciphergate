@@ -8,6 +8,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- Optional local NER detector (#7): `pip install 'ciphergate[ner]'` plus a user-installed spaCy
+  model; enable with `detectors.presidio` in the policy (off by default). Presidio entities map
+  to categories (default `PERSON` -> `pii.person_name`, `LOCATION` -> `location.coarse`) and
+  findings use detector `presidio_ner`. A missing extra or model fails with exit 6 and is never
+  downloaded. Third-party error messages are replaced. Tested with a fake engine only.
 - Directory (batch) runs (#9): `inspect`, `plan`, `rescan` and `sanitize` accept a directory
   INPUT, with `--recursive` and `--max-files` (default 1000). Symlinks, junctions and special
   files are skipped and reported, never followed. `sanitize` stages the whole output tree and

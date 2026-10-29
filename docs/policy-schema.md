@@ -58,6 +58,13 @@ non-DOB dates as `date.generic`), `internal_host_suffixes` (default `.internal .
 patterns are checked for compile errors, empty matches, nested quantifiers, backreferences and
 multiple unbounded wildcards — heuristics, not proof), `reject_risky_regex` (default `true`).
 
+`presidio` (optional NER, needs the `ner` extra): `enabled` (default `false`), `language`
+(two-letter code, default `en`), `model` (installed spaCy package name, default `en_core_web_lg`),
+`min_score` (0..1, default `0.6`), `entities` (map of Presidio entity names such as `PERSON` to
+CipherGate categories; default `{PERSON: pii.person_name, LOCATION: location.coarse}`; categories
+must exist). When enabled, validation adds a warning and rules may reference detector
+`presidio_ner`; a run without the extra or model fails with exit 6.
+
 `secret_pattern` and `field_name` cannot be disabled in strict policies, policies pinned to an
 untrusted destination, or policies with transfer approvals (`credential_detection_required`). Runs
 toward an untrusted or missing destination with either disabled are blocked.

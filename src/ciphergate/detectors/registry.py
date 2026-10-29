@@ -66,6 +66,11 @@ class DetectorSet:
         if document is not None and document.classifications:
             detectors.append(PolicyClassificationDetector(document.classifications))
         detectors.extend(CustomRegexDetector(spec) for spec in settings.custom)
+        if settings.presidio.enabled:
+            # Imported lazily: the base install never imports the optional NER code path.
+            from ciphergate.detectors.presidio_ner import PresidioDetector  # noqa: PLC0415
+
+            detectors.append(PresidioDetector(settings.presidio))
         self.detectors = tuple(detectors)
         self.ids = tuple(d.id for d in detectors)
 

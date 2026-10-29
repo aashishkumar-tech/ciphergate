@@ -36,6 +36,10 @@
   directory; on POSIX `rename` can replace an *empty* directory created at that path in the
   instant after the final existence check. Output directories are created owner-only (0700)
   on POSIX. `--force` does not replace output directories.
+- The optional Presidio NER detector is tested only against a fake engine; its real accuracy,
+  speed and memory use depend on the spaCy model and have not been measured by this project.
+  CipherGate prevents Presidio's automatic model download by checking that the model is
+  installed first, but cannot otherwise control what third-party code does once imported.
 - stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
   temporary file before processing (the pipeline reads its input twice), so it is not
   incremental: nothing is written to stdout until the whole input has been processed, and the

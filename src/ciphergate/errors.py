@@ -77,6 +77,13 @@ class DetectionError(CipherGateError):
     exit_code = ExitCode.INPUT_ERROR
 
 
+class DetectorUnavailableError(CipherGateError):
+    """An optional detector is enabled by the policy but cannot be used (never skipped)."""
+
+    default_code = "detector_unavailable"
+    exit_code = ExitCode.KEY_OR_TRANSFORM_CONFIG
+
+
 class UnsafePathError(CipherGateError):
     default_code = "unsafe_path"
     exit_code = ExitCode.OUTPUT_ERROR

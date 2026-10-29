@@ -234,6 +234,26 @@ class CustomDetector(StrictModel):
     ignore_case: bool = False
 
 
+PRESIDIO_ENTITY_RE = r"^[A-Z][A-Z0-9_]{1,63}$"
+SPACY_MODEL_RE = r"^[a-z][a-z0-9_]{1,63}$"
+
+
+def _default_presidio_entities() -> dict[str, str]:
+    return {"PERSON": "pii.person_name", "LOCATION": "location.coarse"}
+
+
+class PresidioSettings(StrictModel):
+    """Optional local NER (Presidio + an already-installed spaCy model). Off by default."""
+
+    enabled: bool = False
+    language: Annotated[str, Field(pattern=r"^[a-z]{2}$")] = "en"
+    model: Annotated[str, Field(pattern=SPACY_MODEL_RE)] = "en_core_web_lg"
+    min_score: Annotated[float, Field(ge=0.0, le=1.0)] = 0.6
+    entities: dict[Annotated[str, Field(pattern=PRESIDIO_ENTITY_RE)], str] = Field(
+        default_factory=_default_presidio_entities, min_length=1
+    )
+
+
 class DetectorSettings(StrictModel):
     disabled: list[str] = Field(default_factory=list)
     dates_emit_generic: bool = False
@@ -249,6 +269,7 @@ class DetectorSettings(StrictModel):
     )
     custom: list[CustomDetector] = Field(default_factory=list)
     reject_risky_regex: bool = True
+    presidio: PresidioSettings = Field(default_factory=PresidioSettings)
 
     @field_validator("internal_host_suffixes")
     @classmethod
