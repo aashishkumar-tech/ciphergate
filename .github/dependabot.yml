@@ -10,6 +10,10 @@ updates:
     # new release falls outside it. Raising a lower bound needs a reason and an update of
     # ci/constraints-min.txt (tested by the min-deps CI job).
     versioning-strategy: increase-if-necessary
+    # Deliberately pinned to the lowest supported versions for the min-deps CI job; updating it
+    # would stop testing the real floors (tests/tooling/test_ci_supply_chain.py also guards this).
+    exclude-paths:
+      - "ci/constraints-min.txt"
     labels: [dependencies]
     commit-message:
       prefix: build

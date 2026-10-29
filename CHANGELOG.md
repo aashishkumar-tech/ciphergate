@@ -19,7 +19,7 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   `actions/setup-python` v7.1.0) and checkout no longer persists the GitHub credential; a
   tooling test enforces both (#5).
 - Dependabot only raises dependency lower bounds when a new release falls outside the declared
-  range, and groups Actions updates.
+  range, groups Actions updates, and never updates `ci/constraints-min.txt`.
 
 ## [0.1.0] - 2026-10-28
 
