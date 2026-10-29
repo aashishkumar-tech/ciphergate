@@ -17,6 +17,16 @@ are engineering estimates mapped to bands (`low` < 0.5 <= `medium` < 0.8 <= `hig
 | `secret_pattern` | `credential.secret` | PEM blocks, `Bearer ...`, `AKIA...`, `ghp_...`, `xox?-`, `sk_test_...`, `AIza...`, JWTs, `scheme://u:pw@`, `Password=...;`, `password=`, `api_key:`, `token=` | `password=`, `password: null`, markers, `******` | 0.8–0.99 | base64/hex-wrapped, split, custom-format or high-entropy secrets without keywords are **missed**; prose like `password: required` is flagged |
 | `internal_host` | `network.telemetry` | `api-1.prod.internal`, `db.corp`, `localhost` | `example.com`, `a.internalx` | 0.75 | internal names without listed suffixes missed; configurable |
 | `custom:<id>` | configured | | | configured | regex-safety checks are heuristics |
+| `presidio_ner` (optional, off by default) | Presidio entities -> mapped categories (default `PERSON` -> `pii.person_name`, `LOCATION` -> `location.coarse`) | `ticket opened by <a person's name>` | numbers, single characters, CipherGate markers/pseudonyms | Presidio score, filtered by `min_score` | statistical model: misses and false positives, language/model dependent, slow; requires `ciphergate[ner]` plus a locally installed spaCy model |
+
+## Optional NER (`presidio_ner`)
+
+Needs `pip install 'ciphergate[ner]'` and a spaCy model installed by the user (for example
+`python -m spacy download en_core_web_lg`). CipherGate checks that the model package is importable
+before importing Presidio and fails with `ner_model_missing` instead of letting Presidio download
+it. Strings with no letters or under two characters are not sent to the model. Tests
+(`tests/unit/test_presidio_ner.py`) use a fake engine. Presidio itself is **not** exercised in
+CI, so accuracy on real text has not been measured by this project.
 
 ## Text/log specifics
 
@@ -26,7 +36,7 @@ lines) are scanned line by line only.
 
 ## Not detected (deferred)
 
-Person names in free text (no NER), postal addresses in free text, government IDs by value
+Person names in free text (only with the optional NER detector), postal addresses in free text, government IDs by value
 pattern, bank account numbers by value pattern, device IDs/MACs by value, proprietary source
 code or business logic, non-English context keywords, encoded/escaped variants beyond simple
 quoting. Field-name heuristics partially cover several of these in structured data.

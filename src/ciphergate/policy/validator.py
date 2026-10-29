@@ -276,6 +276,15 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
 
     # --- detectors
     detector_ids = set(BUILTIN_DETECTOR_IDS) | {"policy_classification"}
+    if doc.detectors.presidio.enabled:
+        detector_ids.add("presidio_ner")
+        for entity, cat in doc.detectors.presidio.entities.items():
+            check_category(cat, f"detectors.presidio.entities.{entity}")
+        warnings.append(
+            "detectors.presidio is enabled: runs need the optional 'ner' extra and the spaCy "
+            f"model '{doc.detectors.presidio.model}' installed locally (never downloaded); NER "
+            "is incomplete and can be slow"
+        )
     seen_custom: set[str] = set()
     for i, det in enumerate(doc.detectors.custom):
         where = f"detectors.custom[{i}]"

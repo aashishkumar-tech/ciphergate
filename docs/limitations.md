@@ -25,6 +25,10 @@
   untouched values may change while values stay equal. JSONL is re-serialized per line.
 - Text is line-based; only PEM private keys are tracked across lines. No structured log parsers.
 - No directory/batch processing, no Parquet/PDF/Office/database inputs.
+- The optional Presidio NER detector is tested only against a fake engine; its real accuracy,
+  speed and memory use depend on the spaCy model and have not been measured by this project.
+  CipherGate prevents Presidio's automatic model download by checking that the model is
+  installed first, but cannot otherwise control what third-party code does once imported.
 - stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
   temporary file before processing (the pipeline reads its input twice), so it is not
   incremental: nothing is written to stdout until the whole input has been processed, and the

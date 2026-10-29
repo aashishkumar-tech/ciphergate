@@ -70,6 +70,9 @@ adds frame locations only. `AtomicOutput` removes the temp file on any exception
 
 ## Optional detectors
 
-No optional/NER detector ships in 0.1.0. The `DetectorSet` is built per run from policy settings;
-a future optional detector would be an explicit extra that must not download models, must fail
-clearly when enabled but missing, and only produces findings (the engine still decides).
+`detectors/presidio_ner.py` (extra `ner`) is the only optional detector. `DetectorSet` imports it
+only when `detectors.presidio.enabled` is true, so the base install never loads it. It checks
+that `presidio_analyzer` and the configured spaCy model package are importable *before* importing
+Presidio (Presidio would otherwise download a missing model), builds the engine once per process,
+replaces every third-party error message, and only produces findings; the engine still decides.
+A missing extra or model is `DetectorUnavailableError` (exit 6).

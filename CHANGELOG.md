@@ -8,6 +8,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- Optional local NER detector (#7): `pip install 'ciphergate[ner]'` plus a user-installed spaCy
+  model; enable with `detectors.presidio` in the policy (off by default). Presidio entities map
+  to categories (default `PERSON` -> `pii.person_name`, `LOCATION` -> `location.coarse`) and
+  findings use detector `presidio_ner`. A missing extra or model fails with exit 6 and is never
+  downloaded. Third-party error messages are replaced. Tested with a fake engine only.
+
 - stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
   `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
   size-capped temporary workspace that is always removed; stdout receives data only after every
