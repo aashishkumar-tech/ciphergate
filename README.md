@@ -171,6 +171,34 @@ Common options: `--policy`, `--format csv|json|jsonl|text|logfmt`, `--report PAT
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
 `--debug` (frames only, never messages/values). `rescan` adds `--strict/--no-strict`.
 
+### Directories (batch runs)
+
+`inspect`, `plan`, `rescan` and `sanitize` accept a directory as INPUT:
+
+```bash
+ciphergate inspect logs/ --policy policies/developer_logs.yml --environment dev \
+  --destination local_dev --recursive --report build/batch.json
+ciphergate sanitize logs/ --policy ... --output build/logs.sanitized --apply
+```
+
+- Files are chosen by extension (`.csv`, `.json`, `.jsonl`, `.ndjson`, `.txt`, `.log`), or all
+  regular files when `--format` is given. Subdirectories are processed only with
+  `--recursive`/`-r` (at most 32 levels). Symlinks, junctions, devices, FIFOs and other
+  extensions are **skipped and listed** in the report with a reason; links are never followed.
+  At most 1000 files by default (`--max-files N`); more fails the run (exit 4) before anything
+  is processed. An empty selection fails with `batch_empty` (exit 4).
+- Each file is processed exactly like a single-file run, in sorted path order; a failing file
+  does not stop the others, so the report covers every file.
+- `sanitize` needs a **new** output directory (an existing one is refused; `--force` is not
+  supported for directories) outside the input directory. The whole tree is built in a private
+  staging directory next to it and published with one rename **only if every file was
+  sanitized**; otherwise nothing is published and the staging directory is removed.
+- The exit code is the first failing file's code in sorted order (0 if all succeeded). The JSON
+  report (`ciphergate.batch-report/v1`) has a summary, every file's full report and the skipped
+  entries. Paths are relative to INPUT; `--path-display redacted` replaces them with
+  `<redacted:NNNN>.ext`. `--report` must not point inside the input or output directory.
+- Directory runs are CLI-only (not part of the Python API) and cannot use stdin/stdout.
+
 ### Structured logs (logfmt)
 
 `--format logfmt` reads `key=value` log lines such as

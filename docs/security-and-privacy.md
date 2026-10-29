@@ -76,7 +76,12 @@ Logging uses the standard library and never receives values. `--verbose` lists m
 
 ## Files
 
-Inputs must be regular files (FIFOs/devices/directories refused). Outputs and reports refuse
+Inputs must be regular files (FIFOs/devices refused). A directory INPUT starts a batch run:
+entries are listed with `lstat`/`scandir` without following symlinks, junctions or other
+reparse points (they are reported as skipped), each file is re-checked just before it is
+read, the output directory must be new and outside the input, and the sanitized tree is
+staged in a private `mkdtemp` directory next to it and renamed into place only if every file
+passed. Outputs and reports refuse
 symlinks, directories, aliases of the input (realpath, `samefile`, Windows case folding) and
 existing files without `--force`. Temp files are created with `mkstemp` in the destination
 directory (0600 on POSIX; on Windows they inherit the directory ACL — CipherGate does not change

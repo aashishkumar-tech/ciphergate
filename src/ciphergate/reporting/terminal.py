@@ -6,6 +6,7 @@ from typing import Any
 
 from ciphergate.constants import DISCLAIMER
 from ciphergate.models.report import RunReport
+from ciphergate.pipeline.batch import BatchReport
 from ciphergate.reporting.safe_text import escape_control
 
 SUMMARY_ITEMS = 15
@@ -102,5 +103,45 @@ def render_summary(report: RunReport, *, verbose: bool = False) -> str:
             lines.append(f"  output:  not written ({out['withheld_reason']})")
     for warning in d["warnings"]:
         lines.append(f"  warning: {escape_control(warning)}")
+    lines.append(f"  note: {DISCLAIMER}")
+    return "\n".join(lines) + "\n"
+
+
+def render_batch_summary(report: BatchReport, *, verbose: bool = False) -> str:
+    d = report.to_dict()
+    s = d["summary"]
+    lines = [
+        f"CipherGate {d['command']} (directory): {d['status'].upper()} (exit {d['exit_code']})"
+    ]
+    recursive = " (recursive)" if d["input"]["recursive"] else ""
+    lines.append(f"  input:   {escape_control(str(d['input']['path']))}{recursive}")
+    if d["policy"]:
+        lines.append(f"  policy:  {escape_control(d['policy']['name'])}")
+    lines.append(
+        f"  files: {s['files_total']}  ok: {s['files_ok']}  failed: {s['files_failed']}  "
+        f"skipped: {s['files_skipped']}"
+    )
+    lines.append(
+        f"  findings: {s['findings_total']}  blocked: {s['blocked']}  "
+        f"review: {s['review_required']}"
+    )
+    for entry in d["files"]:
+        detail = entry["status"]
+        if "error" in entry:
+            detail = f"error[{entry['error']['code']}]"
+        elif verbose:
+            detail += f", findings={entry['report']['summary'].get('findings_total', 0)}"
+        lines.append(f"    {escape_control(entry['path'])}: {detail} (exit {entry['exit_code']})")
+    for skip in d["skipped"]:
+        lines.append(f"    skipped {escape_control(skip['path'])}: {skip['reason']}")
+    out = d["output"]
+    if out:
+        if out.get("written"):
+            lines.append(f"  output:  directory written to {escape_control(str(out['path']))}")
+        else:
+            lines.append(f"  output:  not written ({out.get('withheld_reason')})")
+    for warning in d["warnings"]:
+        lines.append(f"  warning: {escape_control(warning)}")
+    lines.append("  note: per-file details are in the JSON report (--report).")
     lines.append(f"  note: {DISCLAIMER}")
     return "\n".join(lines) + "\n"

@@ -8,6 +8,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- Directory (batch) runs (#9): `inspect`, `plan`, `rescan` and `sanitize` accept a directory
+  INPUT, with `--recursive` and `--max-files` (default 1000). Symlinks, junctions and special
+  files are skipped and reported, never followed. `sanitize` stages the whole output tree and
+  publishes a new directory only if every file was sanitized. Batch report schema
+  `ciphergate.batch-report/v1`; the exit code is the first failing file's. CLI only.
 - logfmt format (#11): `--format logfmt` for `key=value` log lines. Each line is scanned exactly
   like `text` (property-tested: never fewer findings), plus field context: findings inside a
   value are attributed to that field (`/key`) and field-name heuristics run on keys, so policy
