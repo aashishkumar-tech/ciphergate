@@ -64,6 +64,21 @@ in Claude Code). In short:
   required), links an issue, carries a type label and a milestone.
 - Vulnerabilities are reported privately (SECURITY.md), never in a public issue.
 
+`main` is protected on GitHub (#6), and the rules also apply to administrators:
+- changes arrive only through a pull request;
+- all 7 CI checks must pass on a branch that is up to date with `main`;
+- PR conversations must be resolved;
+- history stays linear (squash merge only);
+- `main` cannot be force-pushed or deleted.
+
+No approving review is required, because GitHub does not let an author approve their own PR
+and the project currently has a single maintainer. The second-reviewer rule below still
+applies whenever a second maintainer is available.
+
+**If you rename or add a CI job**, update the required status checks in the branch
+protection settings in the same change. Otherwise every PR waits forever for a check that
+never runs.
+
 ## Security-sensitive review
 
 Changes to `policy/`, `transforms/`, `pipeline/`, `reporting/`, `readers/` or `cli.py` need a
@@ -72,6 +87,6 @@ they do not replace human review.
 
 ## Ready to merge
 
-All CI jobs pass (`repo-safety`, `test` matrix, `install-smoke`); the PR title is a valid
+All CI jobs pass (`repo-safety`, `test` matrix, `min-deps`, `install-smoke`); the PR title is a valid
 Conventional Commit; docs and changelog match behaviour; new behaviour is tested (including a
 negative/fail-closed case); no compliance or "guaranteed" claims were added.
