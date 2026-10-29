@@ -31,8 +31,9 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
-  multi-line PEM private-key blocks), logfmt (`--format logfmt`: `key=value` log lines) and
-  JSON in log lines (`--format jsonlog`), see below.
+  multi-line PEM private-key blocks), logfmt (`--format logfmt`: `key=value` log lines), JSON
+  in log lines (`--format jsonlog`) and nginx/Apache access logs (`--format accesslog`), see
+  below.
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -165,7 +166,7 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
@@ -271,8 +272,31 @@ logfmt, it is never selected from the file extension.
   object) protects every value of that object.
 - Only objects (`{...}`) are recognised, at most 16 start positions per line, nested at most
   64 levels (the JSON depth limit). Text that is not valid JSON, and lines inside a PEM private
-  key block, get no field context (they are still scanned as text). `drop_field` is not supported (it
-  becomes `review`; a credential there blocks).
+  key block, get no field context (they are still scanned as text). `drop_field` is not
+  supported (it becomes `review`; a credential there blocks).
+
+### Access logs (nginx/Apache common and combined)
+
+`--format accesslog` reads NCSA common/combined lines, the default layout of nginx and Apache
+httpd:
+`192.0.2.10 - alice [05/Jan/2026:10:00:00 +0000] "GET /p?email=a%40example.com HTTP/1.1" 200 12 "-" "curl/8"`.
+It is never selected from the file extension.
+
+- Every line is still scanned exactly like `text` (property-tested). Fields get nginx variable
+  names as paths: `/remote_addr`, `/ident`, `/remote_user`, `/time_local`, `/request` (or
+  `/request/method`, `/request/path`, `/request/protocol`), `/status`, `/body_bytes_sent`,
+  `/http_referer` and `/http_user_agent`. Query strings of the request and the referer become
+  fields as well (`/request/query/email`), so field-name heuristics and `field_names` rules
+  apply to parameters such as `email` or `access_token`.
+- Log escapes (`\x22`, `\"`) and percent-encoding (`%40`) are decoded and the decoded value is
+  scanned too, so `alice.test%40example.com` is found although the raw-text scan misses it.
+- Output keeps the line as it was; only protected spans change. Replacements are
+  percent-encoded in paths and query strings and `\xHH`-escaped elsewhere, and each rewritten
+  line must still parse with all its fields, or the run fails and nothing is published.
+- A `-` field gets no field context. Only lines that start with the common/combined layout are
+  recognised: fields after the user agent (such as `$http_x_forwarded_for`), virtual-host
+  prefixes and custom layouts get text-mode scanning only. `drop_field` is not supported (it
+  becomes `review`).
 
 ### Pipes (stdin/stdout)
 

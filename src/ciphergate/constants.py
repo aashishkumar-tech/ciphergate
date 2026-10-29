@@ -77,10 +77,13 @@ class InputFormat(StrEnum):
     TEXT = "text"
     LOGFMT = "logfmt"
     JSONLOG = "jsonlog"
+    ACCESSLOG = "accesslog"
 
 
 # Line-oriented formats: each line is scanned as text and rewritten span by span.
-LINE_FORMATS = frozenset({InputFormat.TEXT, InputFormat.LOGFMT, InputFormat.JSONLOG})
+LINE_FORMATS = frozenset(
+    {InputFormat.TEXT, InputFormat.LOGFMT, InputFormat.JSONLOG, InputFormat.ACCESSLOG}
+)
 
 
 class Action(StrEnum):

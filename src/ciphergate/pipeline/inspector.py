@@ -25,10 +25,21 @@ from ciphergate.policy.context import resolve_context
 from ciphergate.policy.engine import Decision, PolicyEngine
 from ciphergate.policy.precedence import LEVEL_HARD_CONSTRAINT
 from ciphergate.policy.validator import Policy
-from ciphergate.readers import ReaderOptions, Record, detect_format, open_reader
+from ciphergate.readers import (
+    STRUCTURED_LINE_FORMATS,
+    ReaderOptions,
+    Record,
+    detect_format,
+    open_reader,
+)
 from ciphergate.readers.base import Reader, normalize_encoding
 from ciphergate.readers.json_reader import JSONReader
-from ciphergate.readers.jsonlog_reader import parse_regions, region_tokens, snap_span, token_at
+from ciphergate.readers.line_structure import (
+    LineStructure,
+    region_tokens,
+    snap_span,
+    token_at,
+)
 from ciphergate.readers.logfmt_reader import field_for_span, parse_fields
 
 Evaluated = list[tuple[Finding, Decision]]
@@ -116,8 +127,8 @@ class Analyzer:
                 findings = setup.detectors.scan_text_line(item, self.text_state)
             elif setup.fmt == InputFormat.LOGFMT:
                 findings = self._scan_logfmt_line(item)
-            elif setup.fmt == InputFormat.JSONLOG:
-                findings = self._scan_jsonlog_line(item)
+            elif setup.fmt in STRUCTURED_LINE_FORMATS:
+                findings = self._scan_structured_line(item, STRUCTURED_LINE_FORMATS[setup.fmt])
             else:
                 findings = setup.detectors.scan(item)
             if not findings:
@@ -155,13 +166,14 @@ class Analyzer:
                 out.append(replace(finding, location=location))
         return detectors.post_process(out)
 
-    def _scan_jsonlog_line(self, item: ScanItem) -> list[Finding]:
-        """Text-mode scan of the whole line, plus field context from embedded JSON objects."""
+    def _scan_structured_line(self, item: ScanItem, structure: LineStructure) -> list[Finding]:
+        """Text-mode scan of the whole line, plus field context from the line's parsed fields."""
         detectors = self.setup.detectors
         in_key_block = self.text_state.in_private_key_block
         findings = detectors.scan_text_line(item, self.text_state)
         text = item.text or ""
-        regions = [] if in_key_block else parse_regions(text, self.setup.runtime.max_json_depth)
+        max_depth = self.setup.runtime.max_json_depth
+        regions = [] if in_key_block else structure.parse(text, max_depth)
         if not regions:
             return findings
         tokens = region_tokens(regions)
@@ -171,7 +183,7 @@ class Analyzer:
             if span is None:
                 out.append(finding)
                 continue
-            # Never let a replacement cross JSON syntax; keep the original span if nothing is left.
+            # Never let a replacement cross field syntax; keep the original span if nothing is left.
             for piece in snap_span(regions, *span) or [span]:
                 moved = finding if piece == span else _with_span(finding, piece)
                 owner = token_at(tokens, *piece)

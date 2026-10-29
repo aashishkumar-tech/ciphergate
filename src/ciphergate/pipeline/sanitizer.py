@@ -30,14 +30,13 @@ from ciphergate.pipeline.paths import display_path, file_digest, validate_output
 from ciphergate.pipeline.planner import Analysis, analyze_file
 from ciphergate.pipeline.rescan import rescan_path
 from ciphergate.policy.validator import Policy
-from ciphergate.readers import Reader, Record, make_writer
+from ciphergate.readers import STRUCTURED_LINE_FORMATS, Reader, Record, make_writer
 from ciphergate.readers.json_reader import pointer_escape
-from ciphergate.readers.jsonlog_reader import (
-    JsonRegion,
+from ciphergate.readers.line_structure import (
+    FieldRegion,
     SpanCodec,
-    parse_regions,
     region_tokens,
-    regions_still_valid,
+    structure_still_valid,
 )
 from ciphergate.readers.logfmt_reader import parse_fields
 from ciphergate.reporting.audit import build_report
@@ -249,12 +248,13 @@ def _transform_record(
         line = record.data
         lookup: EntityLookup | None = None
         codec: SpanCodec | None = None
-        regions: list[JsonRegion] = []
+        regions: list[FieldRegion] = []
+        structure = STRUCTURED_LINE_FORMATS.get(fmt)
         if fmt == InputFormat.LOGFMT:
             lookup = _logfmt_lookup(line)
-        elif fmt == InputFormat.JSONLOG:
-            regions = parse_regions(line, max_depth)
-            lookup, codec = _jsonlog_lookup(regions), SpanCodec(regions)
+        elif structure is not None:
+            regions = structure.parse(line, max_depth)
+            lookup, codec = _structured_lookup(regions), SpanCodec(structure, regions)
         original = line
         for item, evaluated in analyzed:
             outcome = transformer.transform_value(
@@ -262,10 +262,15 @@ def _transform_record(
             )
             note(outcome.changed, False)
             line = outcome.value
-        if regions and line != original and not regions_still_valid(line, regions, max_depth):
+        if (
+            structure is not None
+            and regions
+            and line != original
+            and not structure_still_valid(structure, line, regions, max_depth)
+        ):
             raise TransformError(
-                "rewriting a line would break its embedded JSON; nothing was published",
-                code="jsonlog_rewrite_invalid",
+                f"rewriting a line would break its {fmt} structure; nothing was published",
+                code=f"{fmt}_rewrite_invalid",
             )
         return line
 
@@ -344,7 +349,7 @@ def _csv_lookup(record: Record, field_names: list[str | None]) -> EntityLookup:
     return lookup
 
 
-def _jsonlog_lookup(regions: list[JsonRegion]) -> EntityLookup:
+def _structured_lookup(regions: list[FieldRegion]) -> EntityLookup:
     values: dict[str, Any] = {}
     for token in region_tokens(regions):
         if token.kind != "key" and token.key is not None:

@@ -118,7 +118,8 @@ _TERMS: list[_Term] = [
     *_terms(
         "pii.customer_identifier",
         0.7,
-        suffix="user_id customer_id account_id member_id subscriber_id username user_name",
+        suffix="user_id customer_id account_id member_id subscriber_id username user_name "
+        "remote_user",
         exact="login",
     ),
     *_terms(

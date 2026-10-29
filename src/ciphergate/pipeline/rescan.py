@@ -19,14 +19,15 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from ciphergate.constants import Action, InputFormat
+from ciphergate.constants import Action
 from ciphergate.detectors.base import is_ciphergate_token
 from ciphergate.models.finding import ScanItem
 from ciphergate.models.policy import GeneralizeParams
 from ciphergate.models.report import RescanSummary
 from ciphergate.pipeline.inspector import Analyzer, Evaluated, RunSetup
 from ciphergate.pipeline.planner import finding_item
-from ciphergate.readers.jsonlog_reader import SpanCodec, parse_regions
+from ciphergate.readers import STRUCTURED_LINE_FORMATS
+from ciphergate.readers.line_structure import SpanCodec
 from ciphergate.transforms.generalize import matches_generalized_shape
 
 
@@ -57,10 +58,11 @@ def rescan_path(setup: RunSetup, path: Path, *, strict: bool) -> RescanSummary:
             sensitive_columns.add(item.column_index)
         redact = item.in_key or item.column_index in sensitive_columns
         text = item.text if item.text is not None else ""
-        # JSON-in-log values are JSON-escaped in the line: compare what the transform wrote.
+        # Structured line values are escaped in the line: compare what the transform wrote.
+        structure = STRUCTURED_LINE_FORMATS.get(setup.fmt)
         codec = (
-            SpanCodec(parse_regions(text, setup.runtime.max_json_depth))
-            if setup.fmt == InputFormat.JSONLOG
+            SpanCodec(structure, structure.parse(text, setup.runtime.max_json_depth))
+            if structure is not None
             else None
         )
         for finding, decision in evaluated:
