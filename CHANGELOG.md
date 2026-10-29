@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-29
+
+Feature release. Existing policies, reports and single-file behaviour are unchanged, except
+where noted below.
+
 ### Added
 
 - Optional local NER detector (#7): `pip install 'ciphergate[ner]'` plus a user-installed spaCy
@@ -29,12 +34,17 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   no group/other permissions (symlink targets are checked). Windows ACLs are not checked (a
   warning is logged). Setting both sources is refused. Failures exit 6 (`key_file_invalid`)
   without output. Reports add the key `source` (`env`/`file`), never the path.
-
 - stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
   `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
   size-capped temporary workspace that is always removed; stdout receives data only after every
   check passed, with the summary on stderr. A closed pipe exits 5 (`stdout_broken_pipe`).
   `--report -` is refused (it would previously have created a file named `-`).
+
+### Changed
+
+- Run reports list a `source` for each key (`env` or `file`).
+- The Python API still rejects a directory input (`input_is_directory`); the message now points
+  to the CLI, which supports directory runs.
 
 ## [0.1.1] - 2026-10-29
 
@@ -129,7 +139,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...v0.1.0
 [0.1.0a1]: https://github.com/aashishkumar-tech/ciphergate/releases/tag/v0.1.0a1
