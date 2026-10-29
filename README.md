@@ -231,7 +231,8 @@ ciphergate sanitize logs/ --policy ... --output build/logs.sanitized --apply
   report (`ciphergate.batch-report/v1`) has a summary, every file's full report and the skipped
   entries. Paths are relative to INPUT; `--path-display redacted` replaces them with
   `<redacted:NNNN>.ext`. `--report` must not point inside the input or output directory.
-- Directory runs are CLI-only (not part of the Python API) and cannot use stdin/stdout.
+- Directory runs cannot use stdin/stdout. The same behaviour is available from Python as
+  `inspect_directory` / `plan_directory` / `rescan_directory` / `sanitize_directory`.
 
 ### Structured logs (logfmt)
 
@@ -308,8 +309,36 @@ report = sanitize_file("app.log", "app.clean.log", policy,
 print(report.status, report.exit_code)
 ```
 
+Streams and directories use the same pipeline and the same safety rules as the CLI:
+
+```python
+import io
+from ciphergate import InputFormat, SanitizeOptions, sanitize_stream, sanitize_directory
+
+out = io.BytesIO()
+report = sanitize_stream(open("app.log", "rb"), out, policy, ctx,
+                         SanitizeOptions(format=InputFormat.TEXT))
+# out is written only if report.ok; a blocked/review/failed run leaves it untouched.
+
+batch = sanitize_directory("logs/", "logs.clean/", policy, ctx, recursive=True)
+print(batch.status, batch.exit_code, batch.to_dict()["summary"])
+```
+
+- `*_stream` functions take binary streams (`"rb"`, `io.BytesIO`) and need an explicit format
+  (`fmt=` or `SanitizeOptions.format`). The input is spooled to a private temporary workspace,
+  capped at `max_input_bytes`, and removed afterwards. `sanitize_stream` copies to `output`
+  only after every check has passed. If that copy fails part-way, it raises `OutputWriteError`
+  (`stream_write_failed`), and `output` may hold an incomplete prefix of sanitized data.
+- `*_directory` functions return a `BatchReport` (`status`, `exit_code`, `files`, `skipped`,
+  `to_dict()` in the `ciphergate.batch-report/v1` schema). `sanitize_directory` needs a new
+  output directory outside the input, publishes it only if every file was sanitized, and refuses
+  `SanitizeOptions(force=True)`.
+- As with `sanitize_file`, `SanitizeOptions()` defaults to `apply=True`; pass `apply=False` for
+  a plan. Keys come from the environment unless `SanitizeOptions(keys=...)` is given.
+
 Supported API: `load_policy`, `validate_policy`, `inspect_file`, `plan_file`, `sanitize_file`,
-`rescan_file` and the types exported from `ciphergate`. Other modules are internal.
+`rescan_file`, the `*_stream` and `*_directory` functions above, and the types exported from
+`ciphergate` (including `BatchReport`). Other modules are internal.
 
 ## Documentation
 

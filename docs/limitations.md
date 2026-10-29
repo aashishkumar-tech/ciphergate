@@ -28,7 +28,7 @@
   access logs and multi-line stack traces get text-mode scanning only. logfmt does not support
   `drop_field`, and a line with malformed quoting gets no field context.
 - No Parquet/PDF/Office/database inputs.
-- Directory runs (CLI only) skip symlinks, junctions and special files rather than following
+- Directory runs (CLI and `*_directory` API) skip symlinks, junctions and special files rather than following
   them, select files by extension unless `--format` is given, and are limited to 1000 files
   (`--max-files`) and 32 directory levels. Discovery and processing are separate steps: an
   entry is re-checked with `lstat` just before it is read, but a hostile local user who can
@@ -40,10 +40,10 @@
   speed and memory use depend on the spaCy model and have not been measured by this project.
   CipherGate prevents Presidio's automatic model download by checking that the model is
   installed first, but cannot otherwise control what third-party code does once imported.
-- stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
-  temporary file before processing (the pipeline reads its input twice), so it is not
-  incremental: nothing is written to stdout until the whole input has been processed, and the
-  input must fit within `--max-bytes`.
+- stdin/stdout (CLI `-`) and binary streams (`*_stream` API) are spooled to a private temporary
+  file before processing (the pipeline reads its input twice), so they are not incremental:
+  nothing is written to stdout or the output stream until the whole input has been processed,
+  and the input must fit within `--max-bytes` / `max_input_bytes`.
 - `drop_field` is unsupported for text; `drop_record` is unsupported for a single (non-array)
   JSON document; both become `review`.
 - JSON object keys are only scanned with `scan_json_keys: true` (all shipped templates set it;

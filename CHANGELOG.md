@@ -6,6 +6,20 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Python API for streams and directories (#38): `inspect_stream`, `plan_stream`,
+  `rescan_stream` and `sanitize_stream` take binary streams (format required; input spooled to
+  a private, size-capped workspace; output written only after a successful run).
+  `inspect_directory`, `plan_directory`, `rescan_directory` and `sanitize_directory` expose
+  directory runs and return the newly exported `BatchReport`. `sanitize_directory` refuses
+  `force=True`, as the CLI does.
+
+### Changed
+
+- CI runs the test suite on macOS (py3.12) again (#37). Case-alias tests now run on any
+  case-insensitive filesystem instead of only on Windows.
+
 ### Fixed
 
 - macOS: a directory run accepted an output directory inside the input directory when the
@@ -13,11 +27,6 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   comparison relied on `normcase`, which does nothing on POSIX. The check now compares file
   identity up the parent chain. The same applies to `--report` placement in directory runs.
   Windows and Linux were not affected. Found by the new macOS CI job (#37).
-
-### Changed
-
-- CI runs the test suite on macOS (py3.12) again (#37). Case-alias tests now run on any
-  case-insensitive filesystem instead of only on Windows.
 
 ## [0.2.0] - 2026-10-29
 
