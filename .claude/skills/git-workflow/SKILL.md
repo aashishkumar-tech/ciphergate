@@ -116,7 +116,12 @@ gh pr checks --watch                            # wait for CI; report failures w
   squash-commit subject.
 - Fill every section of the template, including **security/privacy impact** and **how it was
   verified** with the exact commands. State what was *not* verified.
-- CI must be green: `test` matrix, `install-smoke`, `repo-safety`. Do not merge red or pending.
+- CI must be green: `test` matrix, `min-deps`, `install-smoke`, `repo-safety`. Do not merge red
+  or pending. GitHub enforces this: `main` is protected (required checks on an up-to-date
+  branch, linear history, resolved conversations, no force-push or deletion, admins included).
+  If the branch is behind `main`, run `gh pr update-branch <n>` and wait for CI again.
+- Renaming or adding a CI job requires updating the required checks in the branch protection
+  settings in the same change, or every PR blocks on a check that never runs.
 - Merge with **squash** (linear history) after review, then delete the branch:
   `gh pr merge <n> --squash --delete-branch` — only when the user asks to merge.
 
