@@ -23,10 +23,13 @@
   (no lossy mode).
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
-- Text is line-based; only PEM private keys are tracked across lines. The structured log
+- Text is line-based; only PEM private keys are tracked across lines, plus stack traces with
+  `--format stacktrace` (Python, JVM and Node.js frames, without lookahead: JVM/Node header
+  lines are not marked as part of the trace; any indented `at name (...)` line counts as a
+  frame; exception groups and other runtimes get text-mode scanning only). The structured log
   parsers are `logfmt` (`key=value`), `jsonlog` (JSON objects embedded in a line), `accesslog`
   (nginx/Apache common and combined layouts) and `syslog` (RFC 5424, RFC 3164 with a `tag:`, and
-  CEF); LEEF and multi-line stack traces get text-mode scanning only. None of them supports
+  CEF); LEEF gets text-mode scanning only. None of them supports
   `drop_field`. CEF keys outside a small built-in list get no canonical name for the
   heuristics, and an unescaped ` key=` inside a CEF value starts a new field. `accesslog` recognises only
   lines that start with the common/combined layout; fields after the user agent, virtual-host

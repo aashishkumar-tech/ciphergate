@@ -6,6 +6,15 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Stack-trace format (#47): `--format stacktrace` scans each line like `text` and also
+  recognises Python tracebacks and JVM/Node.js frames. Frame and Python source lines get a
+  `proprietary.source` finding from the new `stack_trace` detector (`/stack/frames/N`,
+  `/stack/frames/N/source`), so policies can redact, review or block them; exception lines get
+  `/stack/exception` (`/stack/caused_by`, `/stack/suppressed`). No lookahead or buffering;
+  never selected from the file extension.
+
 ## [0.5.0] - 2026-10-29
 
 Adds syslog (RFC 5424 and RFC 3164) and CEF parsing as `--format syslog`. Existing formats

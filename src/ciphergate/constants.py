@@ -79,6 +79,7 @@ class InputFormat(StrEnum):
     JSONLOG = "jsonlog"
     ACCESSLOG = "accesslog"
     SYSLOG = "syslog"
+    STACKTRACE = "stacktrace"
 
 
 # Line-oriented formats: each line is scanned as text and rewritten span by span.
@@ -89,8 +90,12 @@ LINE_FORMATS = frozenset(
         InputFormat.JSONLOG,
         InputFormat.ACCESSLOG,
         InputFormat.SYSLOG,
+        InputFormat.STACKTRACE,
     }
 )
+
+# Findings for stack-trace frames and source lines (--format stacktrace); not a DetectorSet member.
+STACK_TRACE_DETECTOR = "stack_trace"
 
 
 class Action(StrEnum):

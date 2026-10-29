@@ -36,6 +36,7 @@ from ciphergate.constants import (
     CREDENTIAL_PERMITTED_ACTIONS,
     HIGH_RISK_CATEGORIES,
     HIGH_RISK_FAMILIES,
+    STACK_TRACE_DETECTOR,
     UNTRUSTED_DESTINATIONS,
     Action,
     Destination,
@@ -275,7 +276,7 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
             )
 
     # --- detectors
-    detector_ids = set(BUILTIN_DETECTOR_IDS) | {"policy_classification"}
+    detector_ids = set(BUILTIN_DETECTOR_IDS) | {"policy_classification", STACK_TRACE_DETECTOR}
     if doc.detectors.presidio.enabled:
         detector_ids.add("presidio_ner")
         for entity, cat in doc.detectors.presidio.entities.items():

@@ -32,8 +32,9 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
   multi-line PEM private-key blocks), logfmt (`--format logfmt`: `key=value` log lines), JSON
-  in log lines (`--format jsonlog`), nginx/Apache access logs (`--format accesslog`) and
-  syslog/CEF (`--format syslog`), see below.
+  in log lines (`--format jsonlog`), nginx/Apache access logs (`--format accesslog`),
+  syslog/CEF (`--format syslog`) and logs with Python/JVM/Node stack traces
+  (`--format stacktrace`), see below.
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -166,7 +167,7 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog|syslog`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog|syslog|stacktrace`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
@@ -327,6 +328,40 @@ It is never selected from the file extension.
   `[A-Za-z0-9_./-]`). Each rewritten line must still parse with all its fields, or the run fails.
 - `-` (NILVALUE) fields get no field context. RFC 3164 lines need a `tag:` (or a CEF message) to
   be recognised; other layouts, LEEF and multi-line messages get text-mode scanning only.
+  `drop_field` is not supported (it becomes `review`).
+
+### Stack traces (Python, JVM, Node.js)
+
+`--format stacktrace` reads a log like `text` and also recognises stack trace lines, so a policy
+can decide what leaves with them. It is never selected from the file extension.
+
+- Every line is still scanned exactly like `text` (property-tested); a credential or email in a
+  frame or source line is found and handled whatever the policy does with the frame.
+- Frame lines (Python `File "...", line N, in f`; JVM `at a.B.c(B.java:12)`; Node
+  `at fn (x.js:1:2)` and `at x.js:1:2`) and the indented Python source/caret lines under a frame
+  get a `proprietary.source` finding from the `stack_trace` detector, at `/stack/frames/N` and
+  `/stack/frames/N/source`. Rules can select them by category or by `detectors: [stack_trace]`.
+  A policy without such a rule falls back to `unknown_sensitive_behavior` (review or block).
+- Other findings on trace lines get the trace path too: the Python exception line is
+  `/stack/exception`, JVM `Caused by:`/`Suppressed:` lines are `/stack/caused_by` and
+  `/stack/suppressed`.
+- Redacting frames keeps the exception type and message for debugging:
+
+```yaml
+  - id: strip-stack-frames
+    priority: 200
+    match: {categories: [proprietary.source], destinations: [external_ai]}
+    action: redact
+```
+
+- There is no lookahead and nothing is buffered: each line is classified from the lines before
+  it, keeps the `max_record_bytes` limit, and a trace of any length is streamed. So a JVM or Node
+  header line (`Exception in thread ...`, `TypeError: ...`) is not marked as part of the trace,
+  and frames are recognised on their own (a truncated or interleaved trace still has every frame
+  flagged). An unrelated log line ends a trace; frame numbering restarts after it.
+- Matching is structural, not semantic: any indented `at name (...)` line counts as a frame, and
+  Python source lines are only recognised after a traceback header or frame. Python exception
+  groups (`| ` prefixes), .NET, Go, Ruby and other runtimes get text-mode scanning only.
   `drop_field` is not supported (it becomes `review`).
 
 ### Pipes (stdin/stdout)

@@ -15,6 +15,7 @@ from ciphergate.readers.jsonl_reader import JSONLReader, JSONLWriter
 from ciphergate.readers.jsonlog_reader import JSONLOG_STRUCTURE, JsonLogReader
 from ciphergate.readers.line_structure import LineStructure
 from ciphergate.readers.logfmt_reader import LogfmtReader
+from ciphergate.readers.stacktrace_reader import StackTraceReader
 from ciphergate.readers.syslog_reader import SYSLOG_STRUCTURE, SyslogReader
 from ciphergate.readers.text_reader import TextReader, TextWriter
 
@@ -83,6 +84,8 @@ def open_reader(path: Path, fmt: InputFormat, options: ReaderOptions) -> Reader:
         return AccessLogReader(path, options)
     if fmt == InputFormat.SYSLOG:
         return SyslogReader(path, options)
+    if fmt == InputFormat.STACKTRACE:
+        return StackTraceReader(path, options)
     return TextReader(path, options)
 
 
