@@ -2,8 +2,14 @@
 
 ## Reporting a vulnerability
 
-**Email: [aashishkumar.tech@gmail.com](mailto:aashishkumar.tech@gmail.com)** with the subject
-starting `[ciphergate security]`.
+Use either private channel:
+
+- **Preferred: GitHub private vulnerability reporting.** Open the
+  [Report a vulnerability](https://github.com/aashishkumar-tech/ciphergate/security/advisories/new)
+  form (Security tab, then "Report a vulnerability"). The report is visible only to you and the
+  maintainers, and the fix can be coordinated in a private advisory.
+- **Email: [aashishkumar.tech@gmail.com](mailto:aashishkumar.tech@gmail.com)**, with the
+  subject starting `[ciphergate security]`.
 
 Report privately. Do **not** open a public issue, pull request or discussion for a
 vulnerability, and do not include exploit details anywhere public before a fix is released.
