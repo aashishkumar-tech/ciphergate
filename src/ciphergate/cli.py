@@ -14,6 +14,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import os
 import signal
 import sys
 import traceback
@@ -41,12 +42,19 @@ from ciphergate.errors import (
     CipherGateError,
     OutputWriteError,
     PolicyValidationError,
+    UnsafePathError,
     UsageError,
 )
 from ciphergate.models.context import ContextInput
 from ciphergate.models.finding import Finding, Location
 from ciphergate.models.report import RunReport
 from ciphergate.pipeline.atomic_output import AtomicOutput
+from ciphergate.pipeline.batch import (
+    BatchReport,
+    analyze_directory,
+    is_inside,
+    sanitize_directory,
+)
 from ciphergate.pipeline.paths import validate_output_path
 from ciphergate.pipeline.sanitizer import (
     SanitizeOptions,
@@ -68,8 +76,13 @@ from ciphergate.policy.context import evaluate_gates, resolve_context
 from ciphergate.policy.engine import PolicyEngine
 from ciphergate.policy.validator import load_policy, validate_policy
 from ciphergate.reporting.safe_text import escape_control
-from ciphergate.reporting.serializer import report_to_json, write_report_file
-from ciphergate.reporting.terminal import render_summary
+from ciphergate.reporting.serializer import (
+    batch_report_to_json,
+    report_to_json,
+    write_batch_report_file,
+    write_report_file,
+)
+from ciphergate.reporting.terminal import render_batch_summary, render_summary
 
 logger = logging.getLogger("ciphergate")
 
@@ -147,6 +160,14 @@ DebugOpt = Annotated[
     bool, typer.Option("--debug", help="On internal errors show frames (never values/messages).")
 ]
 ForceOpt = Annotated[bool, typer.Option("--force", help="Replace an existing output/report file.")]
+RecursiveOpt = Annotated[
+    bool,
+    typer.Option("--recursive", "-r", help="With a directory INPUT, also process subdirectories."),
+]
+MaxFilesOpt = Annotated[
+    int | None,
+    typer.Option("--max-files", min=1, help="Maximum files in a directory run (default 1000)."),
+]
 
 
 def _context(
@@ -166,13 +187,17 @@ def _context(
 
 
 def _runtime(
-    max_bytes: int | None, encoding: str | None, path_display: PathDisplayChoice | None
+    max_bytes: int | None,
+    encoding: str | None,
+    path_display: PathDisplayChoice | None,
+    max_files: int | None = None,
 ) -> RuntimeSettings:
     try:
         return RuntimeSettings().with_overrides(
             max_input_bytes=max_bytes,
             encoding=encoding,
             path_display=str(path_display) if path_display else None,
+            max_batch_files=max_files,
         )
     except ValueError as exc:
         raise UsageError(str(exc), code="invalid_runtime_setting") from None
@@ -236,6 +261,46 @@ def _emit(
     elif not quiet:
         summary.write(render_summary(report, verbose=verbose))
     return report.exit_code
+
+
+def _emit_batch(
+    report: BatchReport,
+    *,
+    report_path: Path | None,
+    report_format: ReportFormat | None,
+    quiet: bool,
+    verbose: bool,
+    force: bool,
+) -> int:
+    if report_path is not None:
+        write_batch_report_file(
+            report, report_path, str(report_format or ReportFormat.JSON), force=force
+        )
+        if not quiet:
+            sys.stdout.write(render_batch_summary(report, verbose=verbose))
+    elif report_format == ReportFormat.JSON:
+        sys.stdout.write(batch_report_to_json(report))
+    elif not quiet:
+        sys.stdout.write(render_batch_summary(report, verbose=verbose))
+    return report.exit_code
+
+
+def _is_directory_input(path: Path) -> bool:
+    return not is_stdio(path) and os.path.isdir(path)
+
+
+def _check_batch_report_path(report: Path | None, directories: list[Path], force: bool) -> None:
+    _check_report_path(report, [], force)
+    if report is not None and any(is_inside(report, d) for d in directories):
+        raise UnsafePathError(
+            "--report must not be inside the input or output directory",
+            code="report_inside_batch_directory",
+        )
+
+
+def _no_recursive(recursive: bool) -> None:
+    if recursive:
+        raise UsageError("--recursive needs a directory INPUT", code="recursive_needs_directory")
 
 
 def _check_report_path(report: Path | None, protected: list[Path], force: bool) -> None:
@@ -366,7 +431,29 @@ def _run_analysis_command(
     verbose: bool,
     force: bool,
     strict: bool | None = None,
+    recursive: bool = False,
 ) -> int:
+    if _is_directory_input(input_path):
+        _check_batch_report_path(report, [input_path], force)
+        batch = analyze_directory(
+            command,
+            input_path,
+            load_policy(policy),
+            ctx,
+            recursive=recursive,
+            runtime=runtime,
+            fmt=fmt,
+            strict=strict,
+        )
+        return _emit_batch(
+            batch,
+            report_path=report,
+            report_format=report_format,
+            quiet=quiet,
+            verbose=verbose,
+            force=force,
+        )
+    _no_recursive(recursive)
     stdin = is_stdio(input_path)
     if stdin:
         fmt = require_stdin_format(fmt, sys.stdin.buffer)
@@ -397,7 +484,7 @@ def _run_analysis_command(
 @app.command("inspect")
 def inspect_command(
     input_path: Annotated[
-        Path, typer.Argument(metavar="INPUT", help="File to inspect, or - for stdin.")
+        Path, typer.Argument(metavar="INPUT", help="File to inspect, a directory, or - for stdin.")
     ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
@@ -411,6 +498,8 @@ def inspect_command(
     max_bytes: MaxBytesOpt = None,
     encoding: EncodingOpt = None,
     path_display: PathDisplayOpt = None,
+    recursive: RecursiveOpt = False,
+    max_files: MaxFilesOpt = None,
     force: ForceOpt = False,
     quiet: QuietOpt = False,
     verbose: VerboseOpt = False,
@@ -429,10 +518,11 @@ def inspect_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display),
+            _runtime(max_bytes, encoding, path_display, max_files),
             quiet,
             verbose,
             force,
+            recursive=recursive,
         ),
     )
 
@@ -440,7 +530,7 @@ def inspect_command(
 @app.command("plan")
 def plan_command(
     input_path: Annotated[
-        Path, typer.Argument(metavar="INPUT", help="File to plan for, or - for stdin.")
+        Path, typer.Argument(metavar="INPUT", help="File to plan for, a directory, or - for stdin.")
     ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
@@ -454,6 +544,8 @@ def plan_command(
     max_bytes: MaxBytesOpt = None,
     encoding: EncodingOpt = None,
     path_display: PathDisplayOpt = None,
+    recursive: RecursiveOpt = False,
+    max_files: MaxFilesOpt = None,
     force: ForceOpt = False,
     quiet: QuietOpt = False,
     verbose: VerboseOpt = False,
@@ -472,10 +564,11 @@ def plan_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display),
+            _runtime(max_bytes, encoding, path_display, max_files),
             quiet,
             verbose,
             force,
+            recursive=recursive,
         ),
     )
 
@@ -483,12 +576,16 @@ def plan_command(
 @app.command("sanitize")
 def sanitize_command(
     input_path: Annotated[
-        Path, typer.Argument(metavar="INPUT", help="File to sanitize, or - for stdin.")
+        Path, typer.Argument(metavar="INPUT", help="File or directory to sanitize, or - for stdin.")
     ],
     policy: PolicyOpt,
     output: Annotated[
         Path,
-        typer.Option("--output", "-o", help="Output file, or - for stdout (after all checks)."),
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output file (a new directory for a directory INPUT), or - for stdout.",
+        ),
     ],
     apply: Annotated[
         bool, typer.Option("--apply", help="Actually write output (else plan).")
@@ -504,6 +601,8 @@ def sanitize_command(
     max_bytes: MaxBytesOpt = None,
     encoding: EncodingOpt = None,
     path_display: PathDisplayOpt = None,
+    recursive: RecursiveOpt = False,
+    max_files: MaxFilesOpt = None,
     force: ForceOpt = False,
     quiet: QuietOpt = False,
     verbose: VerboseOpt = False,
@@ -514,6 +613,9 @@ def sanitize_command(
     _configure_logging(verbose, debug)
 
     def body() -> int:
+        if _is_directory_input(input_path):
+            return sanitize_batch()
+        _no_recursive(recursive)
         stdin, to_stdout = is_stdio(input_path), is_stdio(output)
         selected_fmt = require_stdin_format(fmt, sys.stdin.buffer) if stdin else fmt
         if to_stdout and report is None and report_format == ReportFormat.JSON:
@@ -569,13 +671,48 @@ def sanitize_command(
             )
         return code
 
+    def sanitize_batch() -> int:
+        if is_stdio(output):
+            raise UsageError(
+                "a directory INPUT needs --output DIR, not stdout", code="stdout_unsupported"
+            )
+        if force:
+            raise UsageError(
+                "--force cannot replace an output directory; remove it or choose a new path",
+                code="force_unsupported_for_directory",
+            )
+        runtime = _runtime(max_bytes, encoding, path_display, max_files)
+        _check_batch_report_path(report, [input_path, output], force)
+        batch = sanitize_directory(
+            input_path,
+            output,
+            load_policy(policy),
+            _context(environment, target_environment, destination, use_case, profile),
+            SanitizeOptions(apply=apply, force=False, format=fmt, runtime=runtime),
+            recursive=recursive,
+        )
+        code = _emit_batch(
+            batch,
+            report_path=report,
+            report_format=report_format,
+            quiet=quiet,
+            verbose=verbose,
+            force=force,
+        )
+        if not apply and not quiet and report_format != ReportFormat.JSON:
+            sys.stdout.write("  (dry run: pass --apply to write the sanitized output)\n")
+        return code
+
     _guard(debug, body)
 
 
 @app.command("rescan")
 def rescan_command(
     input_path: Annotated[
-        Path, typer.Argument(metavar="INPUT", help="Sanitized file to rescan, or - for stdin.")
+        Path,
+        typer.Argument(
+            metavar="INPUT", help="Sanitized file to rescan, a directory, or - for stdin."
+        ),
     ],
     policy: PolicyOpt,
     strict: Annotated[
@@ -596,6 +733,8 @@ def rescan_command(
     max_bytes: MaxBytesOpt = None,
     encoding: EncodingOpt = None,
     path_display: PathDisplayOpt = None,
+    recursive: RecursiveOpt = False,
+    max_files: MaxFilesOpt = None,
     force: ForceOpt = False,
     quiet: QuietOpt = False,
     verbose: VerboseOpt = False,
@@ -614,11 +753,12 @@ def rescan_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display),
+            _runtime(max_bytes, encoding, path_display, max_files),
             quiet,
             verbose,
             force,
             strict,
+            recursive=recursive,
         ),
     )
 

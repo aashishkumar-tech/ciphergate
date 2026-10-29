@@ -32,6 +32,7 @@ from ciphergate.pipeline.rescan import rescan_path
 from ciphergate.policy.validator import Policy
 from ciphergate.readers import Reader, Record, make_writer
 from ciphergate.readers.json_reader import pointer_escape
+from ciphergate.readers.logfmt_reader import parse_fields
 from ciphergate.reporting.audit import build_report
 from ciphergate.transforms.keys import KeyProvider
 from ciphergate.transforms.registry import EntityLookup, Transformer
@@ -234,10 +235,13 @@ def _transform_record(
         stats["values_changed"] += int(changed)
         stats["type_changes"] += int(type_changed)
 
-    if fmt == InputFormat.TEXT:
+    if fmt in (InputFormat.TEXT, InputFormat.LOGFMT):
         line = record.data
+        lookup = _logfmt_lookup(line) if fmt == InputFormat.LOGFMT else None
         for item, evaluated in analyzed:
-            outcome = transformer.transform_value(line, evaluated, field_path=item.field_path)
+            outcome = transformer.transform_value(
+                line, evaluated, field_path=item.field_path, entity_lookup=lookup
+            )
             note(outcome.changed, False)
             line = outcome.value
         return line
@@ -313,6 +317,17 @@ def _csv_lookup(record: Record, field_names: list[str | None]) -> EntityLookup:
 
     def lookup(name: str) -> Any:
         return columns.get(normalize_field_name(name))
+
+    return lookup
+
+
+def _logfmt_lookup(line: str) -> EntityLookup:
+    values: dict[str, str] = {}
+    for field in parse_fields(line) or []:
+        values.setdefault(normalize_field_name(field.key), field.value)
+
+    def lookup(name: str) -> Any:
+        return values.get(normalize_field_name(name))
 
     return lookup
 

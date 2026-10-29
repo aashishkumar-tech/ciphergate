@@ -32,6 +32,9 @@ BUILTIN_DETECTOR_IDS: tuple[str, ...] = (
 _PHONE_SUPPRESSORS = frozenset({"luhn_card", "ip_address", "date_pattern", "secret_pattern"})
 
 
+FIELD_CONTEXT_DETECTORS = frozenset({"field_name", "policy_classification"})
+
+
 @dataclass(slots=True)
 class TextBlockState:
     """Cross-line state for text/log input (multi-line PEM private key blocks)."""
@@ -77,6 +80,14 @@ class DetectorSet:
             findings.extend(detector.detect(item))
         return self._post_process(findings)
 
+    def scan_field_context(self, item: ScanItem) -> list[Finding]:
+        """Only the detectors that judge a value by its field name/path (logfmt keys)."""
+        findings: list[Finding] = []
+        for detector in self.detectors:
+            if detector.id in FIELD_CONTEXT_DETECTORS:
+                findings.extend(detector.detect(item))
+        return findings
+
     def scan_text_line(self, item: ScanItem, state: TextBlockState) -> list[Finding]:
         """Scan one text/log line, tracking multi-line private key blocks across lines."""
         text = item.text or ""
@@ -103,6 +114,10 @@ class DetectorSet:
         if begin is not None and not PEM_END_RE.search(text, begin.end()):
             state.in_private_key_block = True
         return findings
+
+    def post_process(self, findings: list[Finding]) -> list[Finding]:
+        """Phone suppression and de-duplication (used for combined logfmt findings)."""
+        return self._post_process(findings)
 
     @staticmethod
     def _post_process(findings: list[Finding]) -> list[Finding]:

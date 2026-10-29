@@ -30,16 +30,25 @@ in `src/` imports network libraries.
 
 ## Keys
 
-- Source: environment variable named by the policy (`key_env`, default `CIPHERGATE_HMAC_KEY`).
-  CLI flags are deliberately not offered (process lists, shell history). Key files are not
-  supported in this release.
+- Source: environment variable named by the policy (`key_env`, default `CIPHERGATE_HMAC_KEY`),
+  or a key file whose path is in `<key_env>_FILE`. CLI flags are deliberately not offered
+  (process lists, shell history), and paths are never put in policies (they are shared).
+  Setting both the variable and `_FILE` is refused (`ambiguous_source`).
+- Key files: regular file, at most 4 KiB, one trailing newline removed, same format as the
+  variable. On POSIX the file must be owned by the effective user and have no group/other
+  permission bits (`0600`/`0400`), checked on the symlink target (Kubernetes secret mounts use
+  symlinks; set `defaultMode: 0400`). On Windows the ACL is **not** checked; a warning is logged.
+  The file is read once per run. A failure yields status `file_unreadable`, `file_not_regular`,
+  `file_too_large` or `file_permissions_insecure` and exit 6 (`key_file_invalid`) with no output.
+  The check runs before the read, so a file swapped between the two (TOCTOU) by someone who can
+  write its directory is not detected; keep it in a directory only you can write.
 - Format: `hex:<hex>`, `base64:<b64>` or raw text (UTF-8 bytes). At least 32 bytes after
   decoding and 8 distinct byte values; otherwise the status is `too_short`, `invalid_encoding` or
   `low_diversity`.
 - Generate: `python -c "import secrets; print('hex:' + secrets.token_hex(32))"`.
 - Read only when a keyed transform runs; cached in memory for the run; never in `repr`, logs,
-  reports, errors, outputs or docs. Reports show only the variable name, status and transform
-  version (`pz1`).
+  reports, errors, outputs or docs. Reports show only the variable name, the source (`env` or
+  `file`, never the path), status and transform version (`pz1`).
 - No fallback key exists. Changing the key changes every pseudonym and date offset.
 - Platform note: environment variables are readable by same-user/privileged processes and some
   diagnostic tools on every OS; prefer a CI secret store and short-lived shells.
@@ -67,7 +76,12 @@ Logging uses the standard library and never receives values. `--verbose` lists m
 
 ## Files
 
-Inputs must be regular files (FIFOs/devices/directories refused). Outputs and reports refuse
+Inputs must be regular files (FIFOs/devices refused). A directory INPUT starts a batch run:
+entries are listed with `lstat`/`scandir` without following symlinks, junctions or other
+reparse points (they are reported as skipped), each file is re-checked just before it is
+read, the output directory must be new and outside the input, and the sanitized tree is
+staged in a private `mkdtemp` directory next to it and renamed into place only if every file
+passed. Outputs and reports refuse
 symlinks, directories, aliases of the input (realpath, `samefile`, Windows case folding) and
 existing files without `--force`. Temp files are created with `mkstemp` in the destination
 directory (0600 on POSIX; on Windows they inherit the directory ACL — CipherGate does not change

@@ -7,7 +7,8 @@ from pathlib import Path
 
 from ciphergate.models.report import RunReport
 from ciphergate.pipeline.atomic_output import AtomicOutput
-from ciphergate.reporting.terminal import render_summary
+from ciphergate.pipeline.batch import BatchReport
+from ciphergate.reporting.terminal import render_batch_summary, render_summary
 
 
 def report_to_json(report: RunReport) -> str:
@@ -23,4 +24,21 @@ def render_report(report: RunReport, report_format: str) -> str:
 def write_report_file(report: RunReport, path: Path, report_format: str, *, force: bool) -> None:
     with AtomicOutput(path, force=force) as out:
         out.stream.write(render_report(report, report_format))
+        out.publish()
+
+
+def batch_report_to_json(report: BatchReport) -> str:
+    return json.dumps(report.to_dict(), indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+
+
+def write_batch_report_file(
+    report: BatchReport, path: Path, report_format: str, *, force: bool
+) -> None:
+    text = (
+        batch_report_to_json(report)
+        if report_format == "json"
+        else render_batch_summary(report, verbose=True)
+    )
+    with AtomicOutput(path, force=force) as out:
+        out.stream.write(text)
         out.publish()
