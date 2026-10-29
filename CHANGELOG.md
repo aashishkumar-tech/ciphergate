@@ -8,6 +8,13 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- logfmt format (#11): `--format logfmt` for `key=value` log lines. Each line is scanned exactly
+  like `text` (property-tested: never fewer findings), plus field context: findings inside a
+  value are attributed to that field (`/key`) and field-name heuristics run on keys, so policy
+  field rules apply to log fields. Lines are rewritten span by span, preserving quoting.
+  `drop_field` becomes `review`. In span transforms, each finding now uses its own field path
+  for pseudonym scope (unchanged for existing formats).
+
 - stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
   `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
   size-capped temporary workspace that is always removed; stdout receives data only after every

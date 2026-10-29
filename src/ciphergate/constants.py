@@ -75,6 +75,7 @@ class InputFormat(StrEnum):
     JSON = "json"
     JSONL = "jsonl"
     TEXT = "text"
+    LOGFMT = "logfmt"
 
 
 class Action(StrEnum):

@@ -1,4 +1,4 @@
-"""Format adapters (readers + writers) for CSV, JSON, JSONL/NDJSON and plain text/log files."""
+"""Format adapters (readers + writers) for CSV, JSON, JSONL/NDJSON, text/log and logfmt."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from ciphergate.readers.base import Reader, ReaderOptions, Record, Writer
 from ciphergate.readers.csv_reader import CSVReader, CSVWriter
 from ciphergate.readers.json_reader import JSONReader, JSONWriter
 from ciphergate.readers.jsonl_reader import JSONLReader, JSONLWriter
+from ciphergate.readers.logfmt_reader import LogfmtReader
 from ciphergate.readers.text_reader import TextReader, TextWriter
 
 EXTENSION_FORMATS: dict[str, InputFormat] = {
@@ -63,6 +64,8 @@ def open_reader(path: Path, fmt: InputFormat, options: ReaderOptions) -> Reader:
         return JSONReader(path, options)
     if fmt == InputFormat.JSONL:
         return JSONLReader(path, options)
+    if fmt == InputFormat.LOGFMT:
+        return LogfmtReader(path, options)
     return TextReader(path, options)
 
 

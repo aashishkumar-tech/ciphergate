@@ -23,7 +23,10 @@
   (no lossy mode).
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
-- Text is line-based; only PEM private keys are tracked across lines. No structured log parsers.
+- Text is line-based; only PEM private keys are tracked across lines. The only structured log
+  parser is `logfmt` (`key=value`); JSON embedded in log lines, syslog/CEF, Apache/nginx
+  access logs and multi-line stack traces get text-mode scanning only. logfmt does not support
+  `drop_field`, and a line with malformed quoting gets no field context.
 - No directory/batch processing, no Parquet/PDF/Office/database inputs.
 - stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
   temporary file before processing (the pipeline reads its input twice), so it is not

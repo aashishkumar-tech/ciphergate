@@ -31,7 +31,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
-  multi-line PEM private-key blocks).
+  multi-line PEM private-key blocks), and logfmt (`--format logfmt`: `key=value` log lines,
+  see below).
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -150,11 +151,29 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
 `--debug` (frames only, never messages/values). `rescan` adds `--strict/--no-strict`.
+
+### Structured logs (logfmt)
+
+`--format logfmt` reads `key=value` log lines such as
+`ts=2026-01-05T10:00:00Z level=info msg="login ok" user_email=alice.test@example.com`. It is
+never selected from the file extension (`.log` stays `text`).
+
+- Every line is still scanned exactly like `text`, so logfmt never finds less than text mode
+  (property-tested). The parse only adds field context: a finding inside a value is attributed to
+  that field (`field_path` `/user_email`), and field-name heuristics run on the keys, so
+  `customer_name="…"` or `user_id=…` are found even when the value itself looks harmless.
+  Policy `field_names` / `field_paths` rules therefore apply to log fields.
+- Output keeps each line as it was; only the protected spans change, so quoting and free text are
+  preserved. `drop_field` is not supported for logfmt (it becomes `review`; a credential there
+  blocks).
+- Keys must start with a letter or `_`; values are bare or double-quoted with backslash escapes.
+  A line with broken quoting gets no field context (it is still scanned as text), and lines inside
+  a PEM private key block are never parsed as fields. JSON embedded in log lines is not parsed.
 
 ### Pipes (stdin/stdout)
 
