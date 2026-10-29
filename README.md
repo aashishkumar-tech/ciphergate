@@ -342,6 +342,10 @@ can decide what leaves with them. It is never selected from the file extension.
   get a `proprietary.source` finding from the `stack_trace` detector, at `/stack/frames/N` and
   `/stack/frames/N/source`. Rules can select them by category or by `detectors: [stack_trace]`.
   A policy without such a rule falls back to `unknown_sensitive_behavior` (review or block).
+  Starter policies: `dev_local` keeps frames; `developer_logs` keeps them for `local_dev`,
+  `approved_internal` and `production_monitoring` and redacts them for every other destination;
+  `external_ai` redacts them; the other starter policies have no rule for them, so they fall
+  back to review (`prd_external_ai`: block).
 - Other findings on trace lines get the trace path too: the Python exception line is
   `/stack/exception`, JVM `Caused by:`/`Suppressed:` lines are `/stack/caused_by` and
   `/stack/suppressed`.

@@ -57,6 +57,27 @@ rules:
     action: redact
     reason: hide_internal_infrastructure
 
+  # --format stacktrace: frames and source lines reveal code paths and internals. They are kept
+  # only for trusted internal destinations; credentials and personal data on those lines are
+  # separate findings and follow the rules above and below.
+  - id: keep-stack-frames-trusted
+    priority: 450
+    match:
+      categories: [proprietary.source]
+      detectors: [stack_trace]
+      destinations: [local_dev, approved_internal, production_monitoring]
+    action: allow
+    reason: stack_frames_kept_for_trusted_debugging
+
+  - id: redact-stack-frames-elsewhere
+    priority: 450
+    match:
+      categories: [proprietary.source]
+      detectors: [stack_trace]
+      destinations: [staging_test, external_vendor, external_ai, public_repository, unknown]
+    action: redact
+    reason: hide_source_paths_and_code
+
   - id: redact-email-phone
     priority: 300
     match:
