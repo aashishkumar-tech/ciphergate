@@ -118,6 +118,20 @@ export CIPHERGATE_HMAC_KEY="hex:$(python -c 'import secrets; print(secrets.token
 $env:CIPHERGATE_HMAC_KEY = "hex:" + (python -c "import secrets; print(secrets.token_hex(32))")
 ```
 
+Alternatively, put the key in a file and set `CIPHERGATE_HMAC_KEY_FILE` to its path (the
+Docker/Kubernetes secrets convention; it works for any `key_env` name plus `_FILE`):
+
+```bash
+umask 077 && python -c 'import secrets; print("hex:" + secrets.token_hex(32))' > ~/.ciphergate.key
+export CIPHERGATE_HMAC_KEY_FILE=~/.ciphergate.key
+```
+
+The file must be a regular file of at most 4 KiB. On Linux/macOS it must be owned by you and not
+accessible to group or others (`chmod 600` or `400`), otherwise the run fails with
+`key_file_invalid`; symlinks are followed and the target is checked. On Windows CipherGate
+cannot check the ACL and prints a warning: restrict the file to your account yourself. Setting
+both `CIPHERGATE_HMAC_KEY` and `CIPHERGATE_HMAC_KEY_FILE` is refused.
+
 Keep the same key to get the same pseudonyms across runs; anyone with the key can link equal
 values. In CI, inject it from the platform's secret store. See
 [docs/security-and-privacy.md](docs/security-and-privacy.md).
@@ -217,7 +231,9 @@ kubectl logs my-pod | ciphergate sanitize - --format text --policy policies/prd_
 - `destination_required_but_missing` — pass `--destination` (and `--environment`).
 - `environment_context_conflict` — the policy pins that value; use a matching policy.
 - `no_applicable_rule_requires_review` — add a rule for that category; inspect lists them.
-- `key_missing` / exit 6 — set `CIPHERGATE_HMAC_KEY` (32+ bytes).
+- `key_missing` / exit 6 — set `CIPHERGATE_HMAC_KEY` (32+ bytes) or `CIPHERGATE_HMAC_KEY_FILE`.
+- `key_file_invalid` / exit 6 — the key file is unreadable, too large, not a regular file,
+  accessible to group/others (POSIX), or both the variable and `_FILE` are set.
 - `format_required` — unknown extension; pass `--format`.
 
 ## Python API
