@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-29
+
+Adds the Python API for streams and directories, and fixes a macOS path-safety bug in
+directory runs that shipped in 0.2.0. CLI behaviour on Linux and Windows is unchanged.
+
 ### Added
 
 - Python API for streams and directories (#38): `inspect_stream`, `plan_stream`,
@@ -161,7 +166,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...v0.1.0
