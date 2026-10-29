@@ -23,6 +23,7 @@ class RuntimeSettings:
     max_json_depth: int = 64
     max_findings: int = 200_000
     max_report_items: int = 1_000
+    max_batch_files: int = 1_000
     encoding: str = "utf-8"
     csv_delimiter: str = ","
     path_display: PathDisplay = "basename"
@@ -37,6 +38,7 @@ class RuntimeSettings:
             "max_json_depth",
             "max_findings",
             "max_report_items",
+            "max_batch_files",
         ):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")

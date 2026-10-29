@@ -24,7 +24,15 @@
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
 - Text is line-based; only PEM private keys are tracked across lines. No structured log parsers.
-- No directory/batch processing, no Parquet/PDF/Office/database inputs.
+- No Parquet/PDF/Office/database inputs.
+- Directory runs (CLI only) skip symlinks, junctions and special files rather than following
+  them, select files by extension unless `--format` is given, and are limited to 1000 files
+  (`--max-files`) and 32 directory levels. Discovery and processing are separate steps: an
+  entry is re-checked with `lstat` just before it is read, but a hostile local user who can
+  write the input directory can still race that check. Publishing renames the staging
+  directory; on POSIX `rename` can replace an *empty* directory created at that path in the
+  instant after the final existence check. Output directories are created owner-only (0700)
+  on POSIX. `--force` does not replace output directories.
 - stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
   temporary file before processing (the pipeline reads its input twice), so it is not
   incremental: nothing is written to stdout until the whole input has been processed, and the

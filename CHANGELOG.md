@@ -8,6 +8,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- Directory (batch) runs (#9): `inspect`, `plan`, `rescan` and `sanitize` accept a directory
+  INPUT, with `--recursive` and `--max-files` (default 1000). Symlinks, junctions and special
+  files are skipped and reported, never followed. `sanitize` stages the whole output tree and
+  publishes a new directory only if every file was sanitized. Batch report schema
+  `ciphergate.batch-report/v1`; the exit code is the first failing file's. CLI only.
+
 - stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
   `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
   size-capped temporary workspace that is always removed; stdout receives data only after every

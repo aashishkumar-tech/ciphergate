@@ -26,7 +26,7 @@ def validate_input_path(path: Path, max_bytes: int) -> Path:
         raise UnsafePathError("input file cannot be accessed", code="input_unreadable") from None
     if stat.S_ISDIR(st.st_mode):
         raise UnsafePathError(
-            "input is a directory; directory processing is not supported", code="input_is_directory"
+            "input is a directory (directory runs are CLI-only)", code="input_is_directory"
         )
     if not stat.S_ISREG(st.st_mode):
         raise UnsafePathError(
