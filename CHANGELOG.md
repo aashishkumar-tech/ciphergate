@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-29
+
+Adds two structured log formats, JSON-in-log and nginx/Apache access logs, and fixes a phone
+detection gap in logfmt. Existing formats behave as before, except that `remote_user` fields
+are now classified as customer identifiers.
+
 ### Added
 
 - JSON-in-log format (#39): `--format jsonlog` for log lines that embed JSON objects. Each line
@@ -189,7 +195,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...v0.1.1
