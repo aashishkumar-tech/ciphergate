@@ -6,6 +6,21 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Fixed
+
+- Runtime dependency floors were not actually supported: with `typer` 0.12–0.18 and a current
+  `click`, most CLI commands failed. The minimum is now `typer>=0.19`, and `PyYAML>=6.0.1`
+  (6.0 does not install on current Python). A new `min-deps` CI job runs the suite at the
+  declared lower bounds (`ci/constraints-min.txt`) so floors stay tested (#5).
+
+### Security
+
+- CI actions are pinned to full commit SHAs (`actions/checkout` v7.0.1,
+  `actions/setup-python` v7.1.0) and checkout no longer persists the GitHub credential; a
+  tooling test enforces both (#5).
+- Dependabot only raises dependency lower bounds when a new release falls outside the declared
+  range, and groups Actions updates.
+
 ## [0.1.0] - 2026-10-28
 
 First release (still alpha quality: pre-1.0, interfaces may change). Same software as 0.1.0a1,

@@ -21,6 +21,10 @@ mypy                                       # strict
 for f in policies/*.yml src/ciphergate/templates/*.yml; do ciphergate validate-policy "$f"; done
 ```
 
+CI also runs the suite at the lowest supported runtime versions (`ci/constraints-min.txt`, the
+`min-deps` job). To change a lower bound in `pyproject.toml`, update that file in the same PR.
+Workflow actions must be pinned to a full commit SHA with a `# vX.Y.Z` comment.
+
 ## Rules for changes
 
 - **Synthetic data only.** Fixtures and examples use `example.com`/`.invalid`, `USER_TEST_*`,

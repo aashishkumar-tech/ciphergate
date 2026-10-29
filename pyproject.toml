@@ -25,11 +25,11 @@ classifiers = [
 ]
 dependencies = [
     # CLI framework (argument parsing, help, exit codes).
-    "typer>=0.12,<1.0",
+    "typer>=0.19,<1.0",
     # Strict, typed policy schema validation.
     "pydantic>=2.6,<3.0",
     # Safe YAML loading for human-authored policies.
-    "PyYAML>=6.0,<7.0",
+    "PyYAML>=6.0.1,<7.0",
 ]
 
 [project.optional-dependencies]
