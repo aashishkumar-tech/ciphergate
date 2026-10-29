@@ -172,9 +172,9 @@ class PolicyEngine:
                     LEVEL_HARD_CONSTRAINT,
                     overridden_rule_id=decision.rule_id,
                 )
-        unsupported = (decision.action == Action.DROP_FIELD and fmt == InputFormat.TEXT) or (
-            finding.location.in_key and decision.action in VALUE_TRANSFORM_ACTIONS
-        )
+        unsupported = (
+            decision.action == Action.DROP_FIELD and fmt in (InputFormat.TEXT, InputFormat.LOGFMT)
+        ) or (finding.location.in_key and decision.action in VALUE_TRANSFORM_ACTIONS)
         if unsupported and finding.category == CREDENTIAL_CATEGORY:
             # A credential that cannot be removed where it is must not wait for review.
             return Decision(

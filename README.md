@@ -31,7 +31,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 
 - **Formats:** CSV (quoted fields, embedded newlines, BOM, CRLF, configurable delimiter), JSON
   (whole document, JSON Pointer paths), JSONL/NDJSON (streamed), plain text/log (line based,
-  multi-line PEM private-key blocks).
+  multi-line PEM private-key blocks), and logfmt (`--format logfmt`: `key=value` log lines,
+  see below).
 - **Detectors (local, deterministic):** field-name heuristics, email, phone (conservative
   confidence), IPv4/IPv6 (stdlib-validated; private addresses as `network.telemetry`), Luhn card
   numbers, dates (DOB only with field/context evidence), credentials/secrets (PEM, bearer/basic,
@@ -117,6 +118,20 @@ export CIPHERGATE_HMAC_KEY="hex:$(python -c 'import secrets; print(secrets.token
 $env:CIPHERGATE_HMAC_KEY = "hex:" + (python -c "import secrets; print(secrets.token_hex(32))")
 ```
 
+Alternatively, put the key in a file and set `CIPHERGATE_HMAC_KEY_FILE` to its path (the
+Docker/Kubernetes secrets convention; it works for any `key_env` name plus `_FILE`):
+
+```bash
+umask 077 && python -c 'import secrets; print("hex:" + secrets.token_hex(32))' > ~/.ciphergate.key
+export CIPHERGATE_HMAC_KEY_FILE=~/.ciphergate.key
+```
+
+The file must be a regular file of at most 4 KiB. On Linux/macOS it must be owned by you and not
+accessible to group or others (`chmod 600` or `400`), otherwise the run fails with
+`key_file_invalid`; symlinks are followed and the target is checked. On Windows CipherGate
+cannot check the ACL and prints a warning: restrict the file to your account yourself. Setting
+both `CIPHERGATE_HMAC_KEY` and `CIPHERGATE_HMAC_KEY_FILE` is refused.
+
 Keep the same key to get the same pseudonyms across runs; anyone with the key can link equal
 values. In CI, inject it from the platform's secret store. See
 [docs/security-and-privacy.md](docs/security-and-privacy.md).
@@ -150,7 +165,7 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 `init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
 (decision for a hypothetical finding — no data needed). All support `--help`.
 
-Common options: `--policy`, `--format csv|json|jsonl|text`, `--report PATH`,
+Common options: `--policy`, `--format csv|json|jsonl|text|logfmt`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
 `--max-bytes`, `--encoding` (UTF-8 default; ASCII-compatible encodings only),
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
@@ -183,6 +198,24 @@ ciphergate sanitize logs/ --policy ... --output build/logs.sanitized --apply
   entries. Paths are relative to INPUT; `--path-display redacted` replaces them with
   `<redacted:NNNN>.ext`. `--report` must not point inside the input or output directory.
 - Directory runs are CLI-only (not part of the Python API) and cannot use stdin/stdout.
+
+### Structured logs (logfmt)
+
+`--format logfmt` reads `key=value` log lines such as
+`ts=2026-01-05T10:00:00Z level=info msg="login ok" user_email=alice.test@example.com`. It is
+never selected from the file extension (`.log` stays `text`).
+
+- Every line is still scanned exactly like `text`, so logfmt never finds less than text mode
+  (property-tested). The parse only adds field context: a finding inside a value is attributed to
+  that field (`field_path` `/user_email`), and field-name heuristics run on the keys, so
+  `customer_name="…"` or `user_id=…` are found even when the value itself looks harmless.
+  Policy `field_names` / `field_paths` rules therefore apply to log fields.
+- Output keeps each line as it was; only the protected spans change, so quoting and free text are
+  preserved. `drop_field` is not supported for logfmt (it becomes `review`; a credential there
+  blocks).
+- Keys must start with a letter or `_`; values are bare or double-quoted with backslash escapes.
+  A line with broken quoting gets no field context (it is still scanned as text), and lines inside
+  a PEM private key block are never parsed as fields. JSON embedded in log lines is not parsed.
 
 ### Pipes (stdin/stdout)
 
@@ -226,7 +259,9 @@ kubectl logs my-pod | ciphergate sanitize - --format text --policy policies/prd_
 - `destination_required_but_missing` — pass `--destination` (and `--environment`).
 - `environment_context_conflict` — the policy pins that value; use a matching policy.
 - `no_applicable_rule_requires_review` — add a rule for that category; inspect lists them.
-- `key_missing` / exit 6 — set `CIPHERGATE_HMAC_KEY` (32+ bytes).
+- `key_missing` / exit 6 — set `CIPHERGATE_HMAC_KEY` (32+ bytes) or `CIPHERGATE_HMAC_KEY_FILE`.
+- `key_file_invalid` / exit 6 — the key file is unreadable, too large, not a regular file,
+  accessible to group/others (POSIX), or both the variable and `_FILE` are set.
 - `format_required` — unknown extension; pass `--format`.
 
 ## Python API

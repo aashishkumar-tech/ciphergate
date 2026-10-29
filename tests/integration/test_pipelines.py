@@ -229,7 +229,12 @@ def test_missing_key_fails_without_output(
     r = plan_file(EXAMPLES / "sample.csv", p, keys=KeyProvider({}))
     assert r.status == RunStatus.CONFIGURATION_REQUIRED and r.exit_code == 6
     assert r.keys == [
-        {"key_env": "CIPHERGATE_HMAC_KEY", "status": "missing", "transform_version": "pz1"}
+        {
+            "key_env": "CIPHERGATE_HMAC_KEY",
+            "source": "env",
+            "status": "missing",
+            "transform_version": "pz1",
+        }
     ]
     r = sanitize_file(
         EXAMPLES / "sample.csv", out, p, options=SanitizeOptions(keys=KeyProvider({}))

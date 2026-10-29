@@ -39,6 +39,7 @@ _SUFFIX = {
     InputFormat.JSON: ".json",
     InputFormat.JSONL: ".jsonl",
     InputFormat.TEXT: ".txt",
+    InputFormat.LOGFMT: ".log",
 }
 
 

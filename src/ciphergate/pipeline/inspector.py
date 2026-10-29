@@ -7,7 +7,7 @@ predicts exactly the decisions that apply mode executes.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ciphergate.config import RuntimeSettings
@@ -23,8 +23,14 @@ from ciphergate.policy.validator import Policy
 from ciphergate.readers import ReaderOptions, Record, detect_format, open_reader
 from ciphergate.readers.base import Reader, normalize_encoding
 from ciphergate.readers.json_reader import JSONReader
+from ciphergate.readers.logfmt_reader import field_for_span, parse_fields
 
 Evaluated = list[tuple[Finding, Decision]]
+
+
+def _attribute(finding: Finding, key: str) -> Finding:
+    location = replace(finding.location, field_path="/" + key)
+    return replace(finding, field_name=key, location=location)
 
 
 @dataclass(frozen=True)
@@ -94,6 +100,8 @@ class Analyzer:
         for item in items:
             if setup.fmt == InputFormat.TEXT:
                 findings = setup.detectors.scan_text_line(item, self.text_state)
+            elif setup.fmt == InputFormat.LOGFMT:
+                findings = self._scan_logfmt_line(item)
             else:
                 findings = setup.detectors.scan(item)
             if not findings:
@@ -104,6 +112,32 @@ class Analyzer:
             ]
             out.append((item, evaluated))
         return out
+
+    def _scan_logfmt_line(self, item: ScanItem) -> list[Finding]:
+        """Text-mode scan of the whole line, plus field context from the key=value parse."""
+        detectors = self.setup.detectors
+        in_key_block = self.text_state.in_private_key_block
+        findings = detectors.scan_text_line(item, self.text_state)
+        fields = None if in_key_block else parse_fields(item.text or "")
+        if not fields:
+            return findings
+        out: list[Finding] = []
+        for finding in findings:
+            span = finding.location.span
+            field = field_for_span(fields, span) if span is not None else None
+            out.append(_attribute(finding, field.key) if field is not None else finding)
+        for field in fields:
+            if field.end <= field.start:
+                continue  # empty value: nothing to protect
+            key_item = ScanItem(
+                item.record_index, item.line, "/" + field.key, field.key, field.value
+            )
+            for finding in detectors.scan_field_context(key_item):
+                location = replace(
+                    finding.location, field_path="/" + field.key, span=(field.start, field.end)
+                )
+                out.append(replace(finding, location=location))
+        return detectors.post_process(out)
 
     def _constrain(self, decision: Decision, item: ScanItem) -> Decision:
         """Location-dependent applicability (fail closed to review, never silently skip)."""
