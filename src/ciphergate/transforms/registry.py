@@ -180,7 +180,7 @@ class Transformer:
                 decision.params,
                 out[start:end],
                 category=finding.category,
-                field_path=field_path,
+                field_path=finding.location.field_path or field_path,
                 in_span=True,
                 entity_lookup=entity_lookup,
             )

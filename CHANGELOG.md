@@ -8,6 +8,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- logfmt format (#11): `--format logfmt` for `key=value` log lines. Each line is scanned exactly
+  like `text` (property-tested: never fewer findings), plus field context: findings inside a
+  value are attributed to that field (`/key`) and field-name heuristics run on keys, so policy
+  field rules apply to log fields. Lines are rewritten span by span, preserving quoting.
+  `drop_field` becomes `review`. In span transforms, each finding now uses its own field path
+  for pseudonym scope (unchanged for existing formats).
 - Key files (#10): set `<key_env>_FILE` (e.g. `CIPHERGATE_HMAC_KEY_FILE`) to a key file path.
   The file must be regular and at most 4 KiB; on POSIX it must be owned by the current user with
   no group/other permissions (symlink targets are checked). Windows ACLs are not checked (a

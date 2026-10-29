@@ -24,6 +24,11 @@ Multi-line PEM private-key blocks are tracked across lines; every line up to the
 end of file) is flagged. Other multi-line constructs (stack traces, JSON fragments split over
 lines) are scanned line by line only.
 
+With `--format logfmt` the same line scan runs unchanged, and `field_name` plus policy
+classifications additionally run on each `key=value` key (covering the whole value). Content
+findings inside a value are attributed to that field. Tests: `tests/unit/test_logfmt.py`,
+including a property test that logfmt findings are a superset of text-mode findings.
+
 ## Not detected (deferred)
 
 Person names in free text (no NER), postal addresses in free text, government IDs by value
