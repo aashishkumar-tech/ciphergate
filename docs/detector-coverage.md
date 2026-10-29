@@ -31,8 +31,8 @@ CI, so accuracy on real text has not been measured by this project.
 ## Text/log specifics
 
 Multi-line PEM private-key blocks are tracked across lines; every line up to the END marker (or
-end of file) is flagged. Other multi-line constructs (stack traces, JSON fragments split over
-lines) are scanned line by line only.
+end of file) is flagged. Other multi-line constructs (JSON fragments split over lines, and
+stack traces outside `--format stacktrace`) are scanned line by line only.
 
 With `--format logfmt` the same line scan runs unchanged, and `field_name` plus policy
 classifications additionally run on each `key=value` key (covering the whole value). Content
@@ -60,6 +60,15 @@ canonical name (`suser` as `source_user_name`, `src` as `source_ip`, `smac` as
 `source_mac_address`, ...) and `csN` fields under their `csNLabel`. Escaped values are decoded
 and scanned with every detector. Tests: `tests/unit/test_syslog.py`, including the same
 superset property.
+
+With `--format stacktrace` the line scan also runs unchanged. The `stack_trace` detector adds a
+`proprietary.source` finding (confidence 0.9 for frames, 0.8 for Python source lines, evidence
+`structure_match` plus `family:python_frame|python_source|jvm_frame|node_frame`) on recognised
+frame and source lines, covering the line after its indentation. It is structural: it does not
+judge whether a path or class name is actually confidential, it flags indented prose of the form
+`at name (...)` (false positive), and it misses frames of other runtimes, Python exception
+groups, and source lines that follow a log-prefixed first traceback line without a frame
+(false negatives). Tests: `tests/unit/test_stacktrace.py`, including the same superset property.
 
 ## Not detected (deferred)
 

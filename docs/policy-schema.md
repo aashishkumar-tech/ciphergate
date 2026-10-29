@@ -85,7 +85,7 @@ Classifications: `{id, field_names | field_paths, category, confidence}` — e.g
   guardrail: false                # level 3; needs environments + target/destinations; not allow
   match:                          # at least one selector; empty lists rejected
     categories: [pii.email]       # exact, "prefix.*" or "*"
-    detectors: [email_regex]      # built-in IDs, policy_classification, custom:<id>
+    detectors: [email_regex]      # built-in IDs, policy_classification, stack_trace, custom:<id>
     field_names: [email]          # normalized (camelCase/kebab/case-insensitive)
     field_paths: ["/users/*/email"]   # fnmatch on JSON Pointer / CSV header
     field_regex: "^/meta/"        # safety-checked
@@ -94,7 +94,7 @@ Classifications: `{id, field_names | field_paths, category, confidence}` — e.g
     destinations: [external_ai]
     domain_profiles: [developer_logs]
     use_cases: [debugging]
-    formats: [csv, json, jsonl, text, logfmt, jsonlog, accesslog, syslog]
+    formats: [csv, json, jsonl, text, logfmt, jsonlog, accesslog, syslog, stacktrace]
     min_confidence: 0.8
     max_confidence: 1.0
   action: pseudonymize

@@ -11,8 +11,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ciphergate.config import RuntimeSettings
-from ciphergate.constants import Action, InputFormat, ReasonCode
-from ciphergate.detectors.base import is_ciphergate_token
+from ciphergate.constants import STACK_TRACE_DETECTOR, Action, InputFormat, ReasonCode
+from ciphergate.detectors.base import is_ciphergate_token, make_finding
 from ciphergate.detectors.registry import (
     FIELD_CONTEXT_DETECTORS,
     DetectorSet,
@@ -41,6 +41,7 @@ from ciphergate.readers.line_structure import (
     token_at,
 )
 from ciphergate.readers.logfmt_reader import field_for_span, parse_fields
+from ciphergate.readers.stacktrace_reader import FRAME, TraceState, classify
 
 Evaluated = list[tuple[Finding, Decision]]
 
@@ -107,6 +108,7 @@ class Analyzer:
         self.setup = setup
         self.reader = reader
         self.text_state = TextBlockState()
+        self.trace_state = TraceState()
         self._single_json_document = isinstance(reader, JSONReader)
 
     def analyze(self, record: Record) -> list[tuple[ScanItem, Evaluated]]:
@@ -127,6 +129,8 @@ class Analyzer:
                 findings = setup.detectors.scan_text_line(item, self.text_state)
             elif setup.fmt == InputFormat.LOGFMT:
                 findings = self._scan_logfmt_line(item)
+            elif setup.fmt == InputFormat.STACKTRACE:
+                findings = self._scan_stacktrace_line(item)
             elif setup.fmt in STRUCTURED_LINE_FORMATS:
                 findings = self._scan_structured_line(item, STRUCTURED_LINE_FORMATS[setup.fmt])
             else:
@@ -165,6 +169,33 @@ class Analyzer:
                 )
                 out.append(replace(finding, location=location))
         return detectors.post_process(out)
+
+    def _scan_stacktrace_line(self, item: ScanItem) -> list[Finding]:
+        """Text-mode scan of the line, plus stack trace context from the lines before it."""
+        in_key_block = self.text_state.in_private_key_block
+        findings = self.setup.detectors.scan_text_line(item, self.text_state)
+        if in_key_block:
+            self.trace_state.reset()
+            return findings
+        trace = classify(item.text or "", self.trace_state)
+        if trace is None:
+            return findings
+        # Per-line findings are kept as they are and only get the trace path. Frame and source
+        # lines also get a finding of their own, so the policy decides what leaves with them.
+        trace_item = replace(item, field_path=trace.pointer)
+        out = [replace(f, location=replace(f.location, field_path=trace.pointer)) for f in findings]
+        if trace.span is not None:
+            out.append(
+                make_finding(
+                    trace_item,
+                    category="proprietary.source",
+                    detector=STACK_TRACE_DETECTOR,
+                    confidence=0.9 if trace.role == FRAME else 0.8,
+                    evidence=("structure_match", f"family:{trace.family}"),
+                    span=trace.span,
+                )
+            )
+        return out
 
     def _scan_structured_line(self, item: ScanItem, structure: LineStructure) -> list[Finding]:
         """Text-mode scan of the whole line, plus field context from the line's parsed fields."""
