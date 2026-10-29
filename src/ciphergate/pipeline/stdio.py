@@ -70,9 +70,11 @@ class StdioWorkspace:
             raise OutputWriteError("stdio workspace is not open", code="stdio_workspace_failed")
         return self.root
 
-    def spool_input(self, stream: IO[bytes], fmt: InputFormat, max_bytes: int) -> Path:
+    def spool_input(
+        self, stream: IO[bytes], fmt: InputFormat, max_bytes: int, *, label: str = "stdin"
+    ) -> Path:
         """Copy ``stream`` into the workspace; fail (never truncate) beyond ``max_bytes``."""
-        path = self._dir() / f"stdin{_SUFFIX[fmt]}"
+        path = self._dir() / f"input{_SUFFIX[fmt]}"
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
         total = 0
         try:
@@ -81,16 +83,21 @@ class StdioWorkspace:
                     chunk = stream.read(_CHUNK)
                     if not chunk:
                         break
+                    if not isinstance(chunk, bytes | bytearray | memoryview):
+                        raise UsageError(
+                            f"{label} must be a binary stream (open it with 'rb')",
+                            code="stream_not_binary",
+                        )
                     total += len(chunk)
                     if total > max_bytes:
                         raise InputLimitError(
-                            f"stdin exceeds max_input_bytes ({max_bytes})",
+                            f"{label} exceeds max_input_bytes ({max_bytes})",
                             code="size_limit_exceeded",
                         )
                     out.write(chunk)
         except OSError:
             raise OutputWriteError(
-                "cannot spool stdin into the temporary workspace", code="stdin_spool_failed"
+                f"cannot spool {label} into the temporary workspace", code="stdin_spool_failed"
             ) from None
         return path
 

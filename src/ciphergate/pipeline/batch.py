@@ -38,6 +38,7 @@ from ciphergate.errors import (
     InputLimitError,
     OutputWriteError,
     UnsafePathError,
+    UsageError,
 )
 from ciphergate.models.context import ContextInput
 from ciphergate.models.report import RunReport
@@ -289,7 +290,7 @@ def _require_files(discovery: Discovery) -> None:
 
 def analyze_directory(
     command: str,
-    root: Path,
+    root: str | Path,
     policy: Policy,
     context: ContextInput | None,
     *,
@@ -299,6 +300,7 @@ def analyze_directory(
     strict: bool | None = None,
 ) -> BatchReport:
     """Batch ``inspect`` / ``plan`` / ``rescan``. Read-only, like the single-file commands."""
+    root = Path(root)
     discovery = discover(root, recursive=recursive, fmt=fmt, max_files=runtime.max_batch_files)
     _require_files(discovery)
 
@@ -319,6 +321,55 @@ def analyze_directory(
         files=_run_each(discovery, mode, run),
         skipped=_skipped(discovery, mode),
     )
+
+
+def inspect_directory(
+    root: str | Path,
+    policy: Policy,
+    context: ContextInput | None = None,
+    *,
+    recursive: bool = False,
+    runtime: RuntimeSettings | None = None,
+    fmt: InputFormat | None = None,
+) -> BatchReport:
+    """Inspect every supported file below ``root``. Never writes any data file."""
+    return analyze_directory(
+        "inspect", root, policy, context, recursive=recursive,
+        runtime=runtime or RuntimeSettings(), fmt=fmt,
+    )  # fmt: skip
+
+
+def plan_directory(
+    root: str | Path,
+    policy: Policy,
+    context: ContextInput | None = None,
+    *,
+    recursive: bool = False,
+    runtime: RuntimeSettings | None = None,
+    fmt: InputFormat | None = None,
+) -> BatchReport:
+    """Preview sanitize decisions for every supported file below ``root``."""
+    return analyze_directory(
+        "plan", root, policy, context, recursive=recursive,
+        runtime=runtime or RuntimeSettings(), fmt=fmt,
+    )  # fmt: skip
+
+
+def rescan_directory(
+    root: str | Path,
+    policy: Policy,
+    context: ContextInput | None = None,
+    *,
+    recursive: bool = False,
+    strict: bool | None = None,
+    runtime: RuntimeSettings | None = None,
+    fmt: InputFormat | None = None,
+) -> BatchReport:
+    """Report residual findings in every supported file below ``root``. Read-only."""
+    return analyze_directory(
+        "rescan", root, policy, context, recursive=recursive,
+        runtime=runtime or RuntimeSettings(), fmt=fmt, strict=strict,
+    )  # fmt: skip
 
 
 def is_inside(path: Path, directory: Path) -> bool:
@@ -346,15 +397,22 @@ def validate_output_directory(root: Path, output: Path) -> None:
 
 
 def sanitize_directory(
-    root: Path,
-    output: Path,
+    root: str | Path,
+    output: str | Path,
     policy: Policy,
-    context: ContextInput | None,
-    options: SanitizeOptions,
+    context: ContextInput | None = None,
+    options: SanitizeOptions | None = None,
     *,
-    recursive: bool,
+    recursive: bool = False,
 ) -> BatchReport:
     """Sanitize every file into a new OUTPUT directory, published only if all files pass."""
+    root, output = Path(root), Path(output)
+    options = options or SanitizeOptions()
+    if options.force:
+        raise UsageError(
+            "force cannot replace an output directory; remove it or choose a new path",
+            code="force_unsupported_for_directory",
+        )
     runtime = options.runtime or RuntimeSettings()
     validate_output_directory(root, output)
     discovery = discover(

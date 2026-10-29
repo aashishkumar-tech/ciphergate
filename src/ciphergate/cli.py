@@ -676,11 +676,6 @@ def sanitize_command(
             raise UsageError(
                 "a directory INPUT needs --output DIR, not stdout", code="stdout_unsupported"
             )
-        if force:
-            raise UsageError(
-                "--force cannot replace an output directory; remove it or choose a new path",
-                code="force_unsupported_for_directory",
-            )
         runtime = _runtime(max_bytes, encoding, path_display, max_files)
         _check_batch_report_path(report, [input_path, output], force)
         batch = sanitize_directory(
@@ -688,7 +683,7 @@ def sanitize_command(
             output,
             load_policy(policy),
             _context(environment, target_environment, destination, use_case, profile),
-            SanitizeOptions(apply=apply, force=False, format=fmt, runtime=runtime),
+            SanitizeOptions(apply=apply, force=force, format=fmt, runtime=runtime),
             recursive=recursive,
         )
         code = _emit_batch(
