@@ -36,8 +36,33 @@ def test_output_equal_to_input_rejected(
     assert src.read_bytes() == before
 
 
-@pytest.mark.skipif(os.name != "nt", reason="case-insensitive filesystem alias")
-def test_case_alias_rejected_on_windows(tmp_path: Path) -> None:
+def _case_insensitive(directory: Path) -> bool:
+    probe = directory / "case-probe"
+    probe.write_text("", encoding="utf-8")
+    try:
+        return (directory / "CASE-PROBE").exists()
+    finally:
+        probe.unlink()
+
+
+def test_batch_output_case_alias_inside_input_rejected(tmp_path: Path) -> None:
+    if not _case_insensitive(tmp_path):
+        pytest.skip("filesystem is case-sensitive")
+    from ciphergate.pipeline.batch import is_inside, validate_output_directory
+
+    root = tmp_path / "in"
+    (root / "Sub").mkdir(parents=True)
+    assert is_inside(tmp_path / "IN" / "out", root)
+    assert is_inside(tmp_path / "IN" / "sub" / "new" / "out", root)
+    assert not is_inside(tmp_path / "INX" / "out", root)
+    with pytest.raises(UnsafePathError) as exc:
+        validate_output_directory(root, tmp_path / "IN" / "out")
+    assert exc.value.code == "output_inside_input"
+
+
+def test_case_alias_rejected_on_case_insensitive_fs(tmp_path: Path) -> None:
+    if not _case_insensitive(tmp_path):
+        pytest.skip("filesystem is case-sensitive")
     src = tmp_path / "in.csv"
     src.write_text("a\n", encoding="utf-8")
     with pytest.raises(UnsafePathError):
