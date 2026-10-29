@@ -69,7 +69,12 @@ def build_report(
         items=acc.items,
         items_truncated=acc.truncated,
         keys=[
-            {"key_env": name, "status": str(state), "transform_version": PSEUDONYM_VERSION}
+            {
+                "key_env": name,
+                "source": analysis.key_sources.get(name, "env"),
+                "status": str(state),
+                "transform_version": PSEUDONYM_VERSION,
+            }
             for name, state in analysis.key_statuses.items()
         ],
         changes=changes or {},

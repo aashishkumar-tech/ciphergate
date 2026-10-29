@@ -23,7 +23,7 @@ file paths and reports; relationships that pseudonyms are meant to preserve.
 | Partial output on failure | Temp file + fsync + atomic publish after all checks; cleanup | Cleanup can fail (logged to stderr with the temp path); power loss semantics depend on filesystem; the report is written after publication |
 | Raw stdin on disk (`-` input) | Spooled to a `mkdtemp` workspace (0700/0600 on POSIX), capped by `max_input_bytes`, removed on success, failure and interruption | Exists on disk for the run; a hard kill or power loss can leave a `ciphergate-stdio-*` directory in the temp dir; on Windows it inherits the user temp directory ACL |
 | Unsafe data on stdout (`--output -`) | Staged in the workspace and copied to stdout only after all checks pass; summary on stderr; JSON report to stdout refused | A closed pipe mid-copy leaves the reader with partial (sanitized) data; exit 5 signals it, but only if the caller checks the status |
-| Key exposure/weak key | Env-var only, min 32 bytes, diversity check, never logged | Env vars visible to privileged local processes |
+| Key exposure/weak key | Env var or `_FILE` key file (owner-only on POSIX, size-capped), min 32 bytes, diversity check, never logged | Env vars visible to privileged local processes |
 | Cross-context linkage via pseudonyms | Default narrow scopes; scope explicit in policy; namespace | Same key + scope links equal values by design |
 | Optional model downloads / network | No optional detectors shipped; no network imports in `src/` (tested) | Dependencies are trusted |
 
