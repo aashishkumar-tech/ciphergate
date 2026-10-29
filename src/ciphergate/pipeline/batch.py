@@ -322,10 +322,27 @@ def analyze_directory(
 
 
 def is_inside(path: Path, directory: Path) -> bool:
-    """True if ``path`` resolves to ``directory`` or somewhere below it."""
+    """True if ``path`` resolves to ``directory`` or somewhere below it.
+
+    Compares file identity, not just spelling: on case-insensitive filesystems (macOS APFS,
+    Windows) ``IN/out`` is inside ``in`` even though ``normcase`` is a no-op on POSIX.
+    """
     real_dir = os.path.normcase(os.path.realpath(directory))
     real = os.path.normcase(os.path.realpath(path))
-    return real == real_dir or real.startswith(real_dir.rstrip(os.sep) + os.sep)
+    if real == real_dir or real.startswith(real_dir.rstrip(os.sep) + os.sep):
+        return True
+    try:
+        dir_stat = os.stat(directory)
+    except OSError:
+        return False
+    current = Path(os.path.realpath(path))
+    for candidate in (current, *current.parents):
+        try:
+            if os.path.samestat(os.stat(candidate), dir_stat):
+                return True
+        except OSError:
+            continue  # not created yet
+    return False
 
 
 def validate_output_directory(root: Path, output: Path) -> None:
