@@ -15,12 +15,14 @@ from ciphergate.readers.jsonl_reader import JSONLReader, JSONLWriter
 from ciphergate.readers.jsonlog_reader import JSONLOG_STRUCTURE, JsonLogReader
 from ciphergate.readers.line_structure import LineStructure
 from ciphergate.readers.logfmt_reader import LogfmtReader
+from ciphergate.readers.syslog_reader import SYSLOG_STRUCTURE, SyslogReader
 from ciphergate.readers.text_reader import TextReader, TextWriter
 
 # Line formats whose lines are parsed into fields (see readers/line_structure.py).
 STRUCTURED_LINE_FORMATS: dict[InputFormat, LineStructure] = {
     InputFormat.JSONLOG: JSONLOG_STRUCTURE,
     InputFormat.ACCESSLOG: ACCESSLOG_STRUCTURE,
+    InputFormat.SYSLOG: SYSLOG_STRUCTURE,
 }
 
 EXTENSION_FORMATS: dict[str, InputFormat] = {
@@ -52,7 +54,7 @@ def detect_format(path: Path, explicit: InputFormat | None = None) -> InputForma
     if fmt is None:
         raise UsageError(
             "cannot infer the input format from this file extension; pass --format "
-            "csv|json|jsonl|text|logfmt|jsonlog|accesslog",
+            + "|".join(InputFormat),
             code="format_required",
         )
     if fmt in (InputFormat.JSON, InputFormat.JSONL):
@@ -79,6 +81,8 @@ def open_reader(path: Path, fmt: InputFormat, options: ReaderOptions) -> Reader:
         return JsonLogReader(path, options)
     if fmt == InputFormat.ACCESSLOG:
         return AccessLogReader(path, options)
+    if fmt == InputFormat.SYSLOG:
+        return SyslogReader(path, options)
     return TextReader(path, options)
 
 

@@ -24,15 +24,16 @@
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
 - Text is line-based; only PEM private keys are tracked across lines. The structured log
-  parsers are `logfmt` (`key=value`), `jsonlog` (JSON objects embedded in a line) and
-  `accesslog` (nginx/Apache common and combined layouts); syslog/CEF and multi-line stack traces
-  get text-mode scanning only. None of them supports `drop_field`. `accesslog` recognises only
+  parsers are `logfmt` (`key=value`), `jsonlog` (JSON objects embedded in a line), `accesslog`
+  (nginx/Apache common and combined layouts) and `syslog` (RFC 5424, RFC 3164 with a `tag:`, and
+  CEF); LEEF and multi-line stack traces get text-mode scanning only. None of them supports
+  `drop_field`. CEF keys outside a small built-in list get no canonical name for the
+  heuristics, and an unescaped ` key=` inside a CEF value starts a new field. `accesslog` recognises only
   lines that start with the common/combined layout; fields after the user agent, virtual-host
   prefixes and custom `log_format`/`LogFormat` layouts get no field context. A logfmt line with
   malformed quoting, and JSON that is invalid, an array at top level, split over several lines,
   nested deeper than the JSON depth limit (64) or past the 16th `{` of a line, get no field
-  context. jsonlog may turn a replaced JSON
-  number/boolean/null into a string.
+  context. jsonlog may turn a replaced JSON number/boolean/null into a string.
 - No Parquet/PDF/Office/database inputs.
 - Directory runs (CLI and `*_directory` API) skip symlinks, junctions and special files rather than following
   them, select files by extension unless `--format` is given, and are limited to 1000 files

@@ -6,6 +6,21 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- syslog/CEF format (#46): `--format syslog` for RFC 5424 and RFC 3164 lines (including rsyslog
+  files) and CEF records, bare or as a syslog message. Header fields, RFC 5424 structured-data
+  parameters (`/sd/<sd-id>/<name>`) and CEF headers and extensions (`/cef/extension/<key>`)
+  become fields. Short CEF keys get canonical names for the field-name heuristics (`suser`,
+  `src`, ...; `csN` via `csNLabel`) while findings keep the raw key. Escapes are decoded for
+  scanning and re-applied to replacements; every rewritten line must still parse.
+
+### Changed
+
+- Rescan recognises a field whose whole decoded value is a CipherGate marker or replacement,
+  even when a pattern matched only part of its escaped form (e.g. `[REDACTED:...\]` in syslog
+  structured data).
+
 ## [0.4.0] - 2026-10-29
 
 Adds two structured log formats, JSON-in-log and nginx/Apache access logs, and fixes a phone
