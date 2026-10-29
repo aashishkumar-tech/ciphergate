@@ -156,6 +156,30 @@ Common options: `--policy`, `--format csv|json|jsonl|text`, `--report PATH`,
 `--path-display basename|redacted|full`, `--force`, `--quiet`, `--verbose`, `--no-color`,
 `--debug` (frames only, never messages/values). `rescan` adds `--strict/--no-strict`.
 
+### Pipes (stdin/stdout)
+
+Use `-` as INPUT to read stdin (then `--format` is required), and `sanitize --output -` to write
+the sanitized data to stdout:
+
+```bash
+kubectl logs my-pod | ciphergate sanitize - --format text --policy policies/prd_external_ai.yml \
+  --environment prd --target-environment external --destination external_ai \
+  --output - --apply --report build/report.json > build/safe.log
+```
+
+- stdout receives data **only after every check passed**. A blocked, review, rescan-failed or
+  errored run writes nothing to stdout and exits nonzero, so always check the exit status (in
+  shells, `set -o pipefail`).
+- With `--output -` the human summary goes to stderr. Use `--report PATH` for the JSON report;
+  `--report -` and `--report-format json` without `--report` are refused because stdout carries
+  the data.
+- stdin is copied into a private temporary workspace (owner-only on POSIX), capped by
+  `--max-bytes`, and deleted when the run ends. Reports name the input `<stdin>` and the output
+  `<stdout>`.
+- If the reader closes the pipe early, the run exits 5 (`stdout_broken_pipe`): what it received
+  is incomplete.
+- A file actually named `-` must be passed as `./-`.
+
 | Code | Meaning |
 |---|---|
 | 0 | Completed; no block/review; required context validated |

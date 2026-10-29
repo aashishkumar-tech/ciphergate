@@ -6,6 +6,14 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
+  `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
+  size-capped temporary workspace that is always removed; stdout receives data only after every
+  check passed, with the summary on stderr. A closed pipe exits 5 (`stdout_broken_pipe`).
+  `--report -` is refused (it would previously have created a file named `-`).
+
 ## [0.1.1] - 2026-10-29
 
 Patch release: corrects the declared minimum dependency versions and hardens CI. No change
