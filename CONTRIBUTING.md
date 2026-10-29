@@ -58,6 +58,9 @@ in Claude Code). In short:
   files, files over 1 MiB, and secret-like lines without a synthetic marker. Reviewed false
   positives go in `.github/git-safety-allowlist.txt` (path + line hash, with a reason). It is a
   pattern scanner: passing is not proof that nothing sensitive is committed.
+- GitHub **secret scanning with push protection** is also enabled. If it blocks a push, do not
+  bypass it: remove the value, rewrite your unpushed commits, and treat a real credential as
+  exposed (rotate it). Like the local check, it only knows specific credential formats.
 - Rebase your branch onto `origin/main` to sync; `--force-with-lease` only on your own branch;
   never force-push `main`, never `--no-verify`.
 - Every PR uses the template (security/privacy impact and exact verification commands are
