@@ -73,6 +73,11 @@ existing files without `--force`. Temp files are created with `mkstemp` in the d
 directory (0600 on POSIX; on Windows they inherit the directory ACL — CipherGate does not change
 ACLs). `--force` uses `os.replace`, so the previous file remains until the new one is complete.
 
+`-` (stdin) is spooled into a private `mkdtemp` workspace (owner-only on POSIX) as a 0600 file,
+capped by `--max-bytes`, and the workspace is removed when the run ends, including on failure
+and Ctrl-C. `--output -` is staged in the same workspace and copied to stdout only after the run
+succeeded; stdout then carries no human text.
+
 ## Dependencies
 
 `typer` (+ `click`, `rich` transitively — rich tracebacks are disabled because they print local

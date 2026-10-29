@@ -24,8 +24,11 @@
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
 - Text is line-based; only PEM private keys are tracked across lines. No structured log parsers.
-- No stdin/stdout data streaming, no directory/batch processing, no Parquet/PDF/Office/database
-  inputs.
+- No directory/batch processing, no Parquet/PDF/Office/database inputs.
+- stdin/stdout are supported by the CLI (`-`), not the Python API. stdin is spooled to a private
+  temporary file before processing (the pipeline reads its input twice), so it is not
+  incremental: nothing is written to stdout until the whole input has been processed, and the
+  input must fit within `--max-bytes`.
 - `drop_field` is unsupported for text; `drop_record` is unsupported for a single (non-array)
   JSON document; both become `review`.
 - JSON object keys are only scanned with `scan_json_keys: true` (all shipped templates set it;

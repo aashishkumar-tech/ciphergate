@@ -3,6 +3,10 @@
 Output contract: human summaries go to stdout (suppressed by ``--quiet``); when ``--report-format
 json`` is used without ``--report``, stdout carries only the JSON report. Errors go to stderr as
 ``error[<code>]: <safe message>``. Exit codes are documented in README.md and ``ExitCode``.
+
+``-`` as INPUT reads stdin (``--format`` required); ``sanitize --output -`` writes the sanitized
+data to stdout only after the run succeeded, and the summary then goes to stderr so stdout
+carries data only. See ``ciphergate.pipeline.stdio``.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from enum import StrEnum
 from importlib import resources
 from pathlib import Path
 from types import FrameType
-from typing import Annotated, Any
+from typing import Annotated, Any, TextIO
 
 import typer
 
@@ -50,6 +54,15 @@ from ciphergate.pipeline.sanitizer import (
     plan_file,
     rescan_file,
     sanitize_file,
+)
+from ciphergate.pipeline.stdio import (
+    STDIN_DISPLAY,
+    STDOUT_DISPLAY,
+    StdioWorkspace,
+    copy_to_stdout,
+    is_stdio,
+    require_stdin_format,
+    silence_stdout,
 )
 from ciphergate.policy.context import evaluate_gates, resolve_context
 from ciphergate.policy.engine import PolicyEngine
@@ -189,6 +202,10 @@ def _guard(debug: bool, body: Callable[[], int]) -> None:
     except KeyboardInterrupt:
         _err("error[interrupted]: operation interrupted; no output was published")
         raise typer.Exit(int(ExitCode.INTERRUPTED)) from None
+    except BrokenPipeError:
+        silence_stdout()
+        _err("error[stdout_broken_pipe]: stdout was closed before all output was written")
+        raise typer.Exit(int(ExitCode.OUTPUT_ERROR)) from None
     except (typer.Exit, typer.Abort):
         raise
     except Exception as exc:  # noqa: BLE001 - last-resort safe rendering
@@ -207,21 +224,30 @@ def _emit(
     quiet: bool,
     verbose: bool,
     force: bool,
+    summary_stream: TextIO | None = None,
 ) -> int:
+    summary = summary_stream or sys.stdout
     if report_path is not None:
         write_report_file(report, report_path, str(report_format or ReportFormat.JSON), force=force)
         if not quiet:
-            sys.stdout.write(render_summary(report, verbose=verbose))
+            summary.write(render_summary(report, verbose=verbose))
     elif report_format == ReportFormat.JSON:
         sys.stdout.write(report_to_json(report))
     elif not quiet:
-        sys.stdout.write(render_summary(report, verbose=verbose))
+        summary.write(render_summary(report, verbose=verbose))
     return report.exit_code
 
 
 def _check_report_path(report: Path | None, protected: list[Path], force: bool) -> None:
-    if report is not None:
-        validate_output_path(report, protected=protected, force=force, label="report")
+    if report is None:
+        return
+    if is_stdio(report):
+        raise UsageError(
+            "--report - is not supported; omit --report and pass --report-format json "
+            "to print the JSON report on stdout",
+            code="report_stdout_unsupported",
+        )
+    validate_output_path(report, protected=protected, force=force, label="report")
 
 
 def _configure_logging(verbose: bool, debug: bool) -> None:
@@ -341,14 +367,23 @@ def _run_analysis_command(
     force: bool,
     strict: bool | None = None,
 ) -> int:
-    _check_report_path(report, [input_path], force)
+    stdin = is_stdio(input_path)
+    if stdin:
+        fmt = require_stdin_format(fmt, sys.stdin.buffer)
+    _check_report_path(report, [] if stdin else [input_path], force)
     loaded = load_policy(policy)
-    if command == "inspect":
-        result = inspect_file(input_path, loaded, ctx, runtime=runtime, fmt=fmt)
-    elif command == "plan":
-        result = plan_file(input_path, loaded, ctx, runtime=runtime, fmt=fmt)
-    else:
-        result = rescan_file(input_path, loaded, ctx, strict=strict, runtime=runtime, fmt=fmt)
+    with StdioWorkspace() if stdin else contextlib.nullcontext() as ws:
+        path = input_path
+        if ws is not None and fmt is not None:
+            path = ws.spool_input(sys.stdin.buffer, fmt, runtime.max_input_bytes)
+        if command == "inspect":
+            result = inspect_file(path, loaded, ctx, runtime=runtime, fmt=fmt)
+        elif command == "plan":
+            result = plan_file(path, loaded, ctx, runtime=runtime, fmt=fmt)
+        else:
+            result = rescan_file(path, loaded, ctx, strict=strict, runtime=runtime, fmt=fmt)
+    if stdin:
+        result.input["path"] = STDIN_DISPLAY
     return _emit(
         result,
         report_path=report,
@@ -361,7 +396,9 @@ def _run_analysis_command(
 
 @app.command("inspect")
 def inspect_command(
-    input_path: Annotated[Path, typer.Argument(metavar="INPUT", help="File to inspect.")],
+    input_path: Annotated[
+        Path, typer.Argument(metavar="INPUT", help="File to inspect, or - for stdin.")
+    ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
     report: ReportOpt = None,
@@ -402,7 +439,9 @@ def inspect_command(
 
 @app.command("plan")
 def plan_command(
-    input_path: Annotated[Path, typer.Argument(metavar="INPUT", help="File to plan for.")],
+    input_path: Annotated[
+        Path, typer.Argument(metavar="INPUT", help="File to plan for, or - for stdin.")
+    ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
     report: ReportOpt = None,
@@ -443,9 +482,14 @@ def plan_command(
 
 @app.command("sanitize")
 def sanitize_command(
-    input_path: Annotated[Path, typer.Argument(metavar="INPUT", help="File to sanitize.")],
+    input_path: Annotated[
+        Path, typer.Argument(metavar="INPUT", help="File to sanitize, or - for stdin.")
+    ],
     policy: PolicyOpt,
-    output: Annotated[Path, typer.Option("--output", "-o", help="Sanitized output file.")],
+    output: Annotated[
+        Path,
+        typer.Option("--output", "-o", help="Output file, or - for stdout (after all checks)."),
+    ],
     apply: Annotated[
         bool, typer.Option("--apply", help="Actually write output (else plan).")
     ] = False,
@@ -470,21 +514,36 @@ def sanitize_command(
     _configure_logging(verbose, debug)
 
     def body() -> int:
-        _check_report_path(report, [input_path, output], force)
+        stdin, to_stdout = is_stdio(input_path), is_stdio(output)
+        selected_fmt = require_stdin_format(fmt, sys.stdin.buffer) if stdin else fmt
+        if to_stdout and report is None and report_format == ReportFormat.JSON:
+            raise UsageError(
+                "--output - uses stdout for data; write the JSON report with --report PATH",
+                code="stdout_conflict",
+            )
+        runtime = _runtime(max_bytes, encoding, path_display)
+        _check_report_path(report, [p for p in (input_path, output) if not is_stdio(p)], force)
         loaded = load_policy(policy)
-        options = SanitizeOptions(
-            apply=apply,
-            force=force,
-            format=fmt,
-            runtime=_runtime(max_bytes, encoding, path_display),
-        )
-        result = sanitize_file(
-            input_path,
-            output,
-            loaded,
-            _context(environment, target_environment, destination, use_case, profile),
-            options,
-        )
+        options = SanitizeOptions(apply=apply, force=force, format=selected_fmt, runtime=runtime)
+        with StdioWorkspace() if stdin or to_stdout else contextlib.nullcontext() as ws:
+            in_path, out_path = input_path, output
+            if ws is not None and stdin and selected_fmt is not None:
+                in_path = ws.spool_input(sys.stdin.buffer, selected_fmt, runtime.max_input_bytes)
+            if ws is not None and to_stdout:
+                out_path = ws.output_path()
+            result = sanitize_file(
+                in_path,
+                out_path,
+                loaded,
+                _context(environment, target_environment, destination, use_case, profile),
+                options,
+            )
+            if stdin:
+                result.input["path"] = STDIN_DISPLAY
+            if to_stdout:
+                result.output["path"] = STDOUT_DISPLAY
+                if result.output.get("written"):
+                    copy_to_stdout(out_path, sys.stdout.buffer)
         try:
             code = _emit(
                 result,
@@ -493,6 +552,7 @@ def sanitize_command(
                 quiet=quiet,
                 verbose=verbose,
                 force=force,
+                summary_stream=sys.stderr if to_stdout else None,
             )
         except OutputWriteError as exc:
             if result.output.get("written"):
@@ -504,7 +564,9 @@ def sanitize_command(
                 ) from None
             raise
         if not apply and not quiet and report_format != ReportFormat.JSON:
-            sys.stdout.write("  (dry run: pass --apply to write the sanitized output)\n")
+            (sys.stderr if to_stdout else sys.stdout).write(
+                "  (dry run: pass --apply to write the sanitized output)\n"
+            )
         return code
 
     _guard(debug, body)
@@ -512,7 +574,9 @@ def sanitize_command(
 
 @app.command("rescan")
 def rescan_command(
-    input_path: Annotated[Path, typer.Argument(metavar="INPUT", help="Sanitized file to rescan.")],
+    input_path: Annotated[
+        Path, typer.Argument(metavar="INPUT", help="Sanitized file to rescan, or - for stdin.")
+    ],
     policy: PolicyOpt,
     strict: Annotated[
         bool | None,
