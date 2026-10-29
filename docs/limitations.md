@@ -23,10 +23,13 @@
   (no lossy mode).
 - JSON output is re-serialized (2-space indent, UTF-8); whitespace and number formatting of
   untouched values may change while values stay equal. JSONL is re-serialized per line.
-- Text is line-based; only PEM private keys are tracked across lines. The only structured log
-  parser is `logfmt` (`key=value`); JSON embedded in log lines, syslog/CEF, Apache/nginx
-  access logs and multi-line stack traces get text-mode scanning only. logfmt does not support
-  `drop_field`, and a line with malformed quoting gets no field context.
+- Text is line-based; only PEM private keys are tracked across lines. The structured log
+  parsers are `logfmt` (`key=value`) and `jsonlog` (JSON objects embedded in a line);
+  syslog/CEF, Apache/nginx access logs and multi-line stack traces get text-mode scanning only.
+  Neither supports `drop_field`. A logfmt line with malformed quoting, and JSON that is invalid,
+  an array at top level, split over several lines, nested deeper than the JSON depth limit (64)
+  or past the 16th `{` of a line, get no field context. jsonlog may turn a replaced JSON
+  number/boolean/null into a string.
 - No Parquet/PDF/Office/database inputs.
 - Directory runs (CLI and `*_directory` API) skip symlinks, junctions and special files rather than following
   them, select files by extension unless `--format` is given, and are limited to 1000 files

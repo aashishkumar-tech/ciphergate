@@ -245,3 +245,13 @@ def test_drop_field_becomes_review(tmp_path: Path, policy_text: Callable[[str], 
 
 def test_field_value_is_list_of_fields() -> None:
     assert parse_fields("a=1") == [LogfmtField("a", "1", 2, 3)]
+
+
+def test_phone_inside_a_sensitive_field_is_still_reported(
+    tmp_path: Path, policy_text: Callable[[str], Policy]
+) -> None:
+    # A field-name finding covers the whole value; it must not suppress a phone inside it.
+    src = tmp_path / "in.log"
+    src.write_bytes(b'level=info email="call 202-555-0143 now"\n')
+    report = inspect_file(src, policy_text(MINIMAL_POLICY), DEV, fmt=InputFormat.LOGFMT)
+    assert "pii.phone" in {i["category"] for i in report.items}

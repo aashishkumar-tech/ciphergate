@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import IO, Any
 
 from ciphergate.config import RuntimeSettings
-from ciphergate.constants import Action, InputFormat
+from ciphergate.constants import LINE_FORMATS, Action, InputFormat
 from ciphergate.detectors.field_names import normalize_field_name
 from ciphergate.errors import InputFormatError, InternalError, TransformError
 from ciphergate.models.context import ContextInput
@@ -32,6 +32,13 @@ from ciphergate.pipeline.rescan import rescan_path
 from ciphergate.policy.validator import Policy
 from ciphergate.readers import Reader, Record, make_writer
 from ciphergate.readers.json_reader import pointer_escape
+from ciphergate.readers.jsonlog_reader import (
+    JsonRegion,
+    SpanCodec,
+    parse_regions,
+    region_tokens,
+    regions_still_valid,
+)
 from ciphergate.readers.logfmt_reader import parse_fields
 from ciphergate.reporting.audit import build_report
 from ciphergate.transforms.keys import KeyProvider
@@ -202,7 +209,9 @@ def _write_transformed(
         if any(d.action == Action.DROP_RECORD for _, ev in analyzed for _, d in ev):
             stats["records_dropped"] += 1
             continue
-        data = _transform_record(setup.fmt, record, analyzed, transformer, stats, reader)
+        data = _transform_record(
+            setup.fmt, record, analyzed, transformer, stats, reader, setup.runtime.max_json_depth
+        )
         writer.write_record(record, data)
         stats["records_written"] += 1
     writer.close()
@@ -230,20 +239,34 @@ def _transform_record(
     transformer: Transformer,
     stats: dict[str, int],
     reader: Reader,
+    max_depth: int,
 ) -> Any:
     def note(changed: bool, type_changed: bool) -> None:
         stats["values_changed"] += int(changed)
         stats["type_changes"] += int(type_changed)
 
-    if fmt in (InputFormat.TEXT, InputFormat.LOGFMT):
+    if fmt in LINE_FORMATS:
         line = record.data
-        lookup = _logfmt_lookup(line) if fmt == InputFormat.LOGFMT else None
+        lookup: EntityLookup | None = None
+        codec: SpanCodec | None = None
+        regions: list[JsonRegion] = []
+        if fmt == InputFormat.LOGFMT:
+            lookup = _logfmt_lookup(line)
+        elif fmt == InputFormat.JSONLOG:
+            regions = parse_regions(line, max_depth)
+            lookup, codec = _jsonlog_lookup(regions), SpanCodec(regions)
+        original = line
         for item, evaluated in analyzed:
             outcome = transformer.transform_value(
-                line, evaluated, field_path=item.field_path, entity_lookup=lookup
+                line, evaluated, field_path=item.field_path, entity_lookup=lookup, span_codec=codec
             )
             note(outcome.changed, False)
             line = outcome.value
+        if regions and line != original and not regions_still_valid(line, regions, max_depth):
+            raise TransformError(
+                "rewriting a line would break its embedded JSON; nothing was published",
+                code="jsonlog_rewrite_invalid",
+            )
         return line
 
     if fmt == InputFormat.CSV:
@@ -317,6 +340,18 @@ def _csv_lookup(record: Record, field_names: list[str | None]) -> EntityLookup:
 
     def lookup(name: str) -> Any:
         return columns.get(normalize_field_name(name))
+
+    return lookup
+
+
+def _jsonlog_lookup(regions: list[JsonRegion]) -> EntityLookup:
+    values: dict[str, Any] = {}
+    for token in region_tokens(regions):
+        if token.kind != "key" and token.key is not None:
+            values.setdefault(normalize_field_name(token.key), token.value)
+
+    def lookup(name: str) -> Any:
+        return values.get(normalize_field_name(name))
 
     return lookup
 

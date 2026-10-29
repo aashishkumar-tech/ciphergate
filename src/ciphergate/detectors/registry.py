@@ -120,6 +120,18 @@ class DetectorSet:
         return self._post_process(findings)
 
     @staticmethod
+    def dedupe(findings: list[Finding]) -> list[Finding]:
+        """Drop exact duplicates (same category, detector and span), keeping order."""
+        out: list[Finding] = []
+        seen: set[tuple[str, str, tuple[int, int] | None]] = set()
+        for f in findings:
+            key = (f.category, f.detector, f.location.span)
+            if key not in seen:
+                seen.add(key)
+                out.append(f)
+        return out
+
+    @staticmethod
     def _post_process(findings: list[Finding]) -> list[Finding]:
         if not findings:
             return findings
@@ -130,7 +142,10 @@ class DetectorSet:
         ] + [
             f.location.span
             for f in findings
-            if f.category == "pii.email" and f.location.span is not None
+            if f.category == "pii.email"
+            and f.location.span is not None
+            # Field-context findings cover a whole value; they must not hide a phone inside it.
+            and f.detector not in FIELD_CONTEXT_DETECTORS
         ]
         out: list[Finding] = []
         seen: set[tuple[str, str, tuple[int, int] | None]] = set()
