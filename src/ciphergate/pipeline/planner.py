@@ -143,6 +143,7 @@ class Analysis:
     digest: str
     key_statuses: dict[str, KeyStatus]
     top_level_array: bool
+    key_sources: dict[str, str] = field(default_factory=dict)
 
     @property
     def status(self) -> RunStatus:
@@ -183,6 +184,7 @@ def analyze_file(setup: RunSetup, keys: KeyProvider) -> Analysis:
         digest=digest,
         key_statuses=key_statuses,
         top_level_array=bool(getattr(reader, "top_level_array", False)),
+        key_sources={name: keys.source(name) for name in key_statuses},
     )
 
 

@@ -8,6 +8,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- Key files (#10): set `<key_env>_FILE` (e.g. `CIPHERGATE_HMAC_KEY_FILE`) to a key file path.
+  The file must be regular and at most 4 KiB; on POSIX it must be owned by the current user with
+  no group/other permissions (symlink targets are checked). Windows ACLs are not checked (a
+  warning is logged). Setting both sources is refused. Failures exit 6 (`key_file_invalid`)
+  without output. Reports add the key `source` (`env`/`file`), never the path.
+
 - stdin/stdout support in the CLI (#8): `-` as INPUT for `inspect`, `plan`, `sanitize` and
   `rescan` (requires `--format`), and `sanitize --output -`. stdin is spooled to a private,
   size-capped temporary workspace that is always removed; stdout receives data only after every
