@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-29
+
+Adds syslog (RFC 5424 and RFC 3164) and CEF parsing as `--format syslog`. Existing formats
+behave as before; rescan additionally recognises CipherGate markers inside escaped fields.
+
 ### Added
 
 - syslog/CEF format (#46): `--format syslog` for RFC 5424 and RFC 3164 lines (including rsyslog
@@ -210,7 +215,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...v0.2.0
