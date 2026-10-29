@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-29
+
+Patch release: corrects the declared minimum dependency versions and hardens CI. No change
+to detection, policy or transform behaviour.
+
 ### Fixed
 
 - Runtime dependency floors were not actually supported: with `typer` 0.12–0.18 and a current
@@ -94,6 +99,7 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.1.0a1...v0.1.0
 [0.1.0a1]: https://github.com/aashishkumar-tech/ciphergate/releases/tag/v0.1.0a1
