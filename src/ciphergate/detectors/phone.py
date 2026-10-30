@@ -21,6 +21,7 @@ _PHONE_RE = re.compile(
 )
 _DATE_LIKE = re.compile(r"^\d{4}[-./]\d{1,2}[-./]\d{1,2}$|^\d{1,2}[-./]\d{1,2}[-./]\d{2,4}$")
 _SEPARATED = re.compile(r"^\(?\d{2,4}\)?[ .-]\d{2,5}[ .-]\d{2,5}(?:[ .-]\d{2,5})?$")
+_HTTP_STATUS_BYTES = re.compile(r"^[1-5]\d{2} \d{1,12}$")
 _KEYWORDS = ("phone", "tel", "mobile", "cell", "call", "fax", "sms", "whatsapp", "contact")
 
 
@@ -40,6 +41,9 @@ class PhoneDetector:
                 continue
             if _DATE_LIKE.match(core.strip()):
                 continue
+            context = preceding_context(text, m.start(), _KEYWORDS)
+            if _HTTP_STATUS_BYTES.match(core.strip()) and not context:
+                continue
             evidence = ["pattern_match"]
             if core.startswith("+"):
                 confidence = 0.8 if len(digits) >= 8 else 0.55
@@ -49,7 +53,7 @@ class PhoneDetector:
                 evidence.append("separator_layout")
             else:
                 confidence = 0.3
-            if preceding_context(text, m.start(), _KEYWORDS):
+            if context:
                 confidence += 0.2
                 evidence.append("context_keyword")
             if "x" in candidate.lower() or "ext" in candidate.lower():

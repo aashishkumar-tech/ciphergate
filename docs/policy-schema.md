@@ -52,7 +52,7 @@ A pinned value combined with a different caller value fails with
 ## Detectors
 
 `disabled` (built-in IDs: `field_name`, `secret_pattern`, `luhn_card`, `ip_address`,
-`date_pattern`, `email_regex`, `internal_host`, `phone_pattern`, `mac_address`, `iban`),
+`date_pattern`, `email_regex`, `internal_host`, `phone_pattern`, `mac_address`, `iban`, `ssn_pattern`),
 `dates_emit_generic` (report
 non-DOB dates as `date.generic`), `internal_host_suffixes` (default `.internal .local .corp .lan
 .intranet .localdomain`), `custom` (list of `{id, category, pattern, confidence, ignore_case}`;

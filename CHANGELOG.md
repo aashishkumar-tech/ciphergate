@@ -6,6 +6,20 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- `ssn_pattern` detector for dashed US Social Security numbers (`pii.government_id`). They were
+  labelled `pii.phone`, so government-ID rules did not apply and a strict template can now block.
+
+### Fixed
+
+- `secret_pattern` no longer stops at `{` for nested values such as Actuator dumps, which left
+  the real value in the output.
+- `secret_pattern` now finds camelCase password names, `Cookie` and `Set-Cookie` headers, and
+  session and CSRF cookie values. `luhn_card` finds labelled CVV and CVC values.
+- Fewer false alarms: shell `PWD` paths, code such as `settings.X` or `request.Y` on the right of
+  an assignment, and an HTTP status followed by a byte count.
+
 ## [0.9.0] - 2026-10-30
 
 Detects more values. A run that passed before can now redact, review or block, so re-check your

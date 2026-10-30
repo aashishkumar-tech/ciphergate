@@ -22,6 +22,7 @@ from ciphergate.detectors.phone import PhoneDetector
 from ciphergate.detectors.regex_safety import regex_problems
 from ciphergate.detectors.registry import DetectorSet, TextBlockState, unsafe_replacement_reason
 from ciphergate.detectors.secrets import SecretDetector
+from ciphergate.detectors.ssn import SsnDetector
 from ciphergate.models.finding import ScanItem
 from ciphergate.models.policy import Classification, CustomDetector, DetectorSettings
 
@@ -493,3 +494,141 @@ def test_env_style_password_names(name: str) -> None:
 @pytest.mark.parametrize("name", ["nopassword", "haspassword", "password_reset_enabled"])
 def test_other_password_words_stay_unmatched(name: str) -> None:
     assert not SecretDetector().detect(item(f"{name}=enabled"))
+
+
+# ------------------------------------------------- bugs found by simulated developer runs
+
+
+TEST_ONLY = "TEST_ONLY_NOT_A_CREDENTIAL"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("ssn 219-09-9999 failed", ["219-09-9999"]),
+        ("078-05-1120", ["078-05-1120"]),
+        ("area 000-12-3456", []),
+        ("area 666-12-3456", []),
+        ("area 912-12-3456", []),
+        ("group 219-00-9999", []),
+        ("serial 219-09-0000", []),
+        ("long 1219-09-99991", []),
+        ("undashed 219099999", []),
+    ],
+)
+def test_ssn(text: str, expected: list[str]) -> None:
+    findings = SsnDetector().detect(item(text))
+    assert spans(findings, text) == expected
+    assert all(f.category == "pii.government_id" for f in findings)
+
+
+def test_ssn_is_not_reported_as_a_phone_number() -> None:
+    categories = {f.category for f in DetectorSet(DetectorSettings()).scan(item("id 219-09-9999"))}
+    assert categories == {"pii.government_id"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f'{{"spring.datasource.password":{{"value":"{TEST_ONLY}"}}}}',
+        f'{{"password": {{ "value": "{TEST_ONLY}" }}}}',
+    ],
+)
+def test_nested_value_is_found_not_the_brace(text: str) -> None:
+    assert spans(SecretDetector().detect(item(text)), text) == [TEST_ONLY]
+
+
+def test_lone_brace_is_not_a_secret() -> None:
+    assert not SecretDetector().detect(item('{"password":{"rotated":true}}'))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"-Djavax.net.ssl.keyStorePassword={TEST_ONLY}",
+        f"trustStorePassword: {TEST_ONLY}",
+        f'{{"dbPassword":"{TEST_ONLY}"}}',
+    ],
+)
+def test_camel_case_password_names(text: str) -> None:
+    assert spans(SecretDetector().detect(item(text)), text) == [TEST_ONLY]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            f"Cookie: sessionid={TEST_ONLY}; csrftoken={TEST_ONLY}",
+            f"sessionid={TEST_ONLY}; csrftoken={TEST_ONLY}",
+        ),
+        (f"Set-Cookie: sid={TEST_ONLY}; Path=/", f"sid={TEST_ONLY}; Path=/"),
+        (f"'sessionid': '{TEST_ONLY}'", TEST_ONLY),
+        (f"csrfmiddlewaretoken={TEST_ONLY}&next=/", TEST_ONLY),
+        (f"JSESSIONID={TEST_ONLY}", TEST_ONLY),
+        (f"session={TEST_ONLY}", TEST_ONLY),
+    ],
+)
+def test_cookies_and_session_values(text: str, expected: str) -> None:
+    assert spans(SecretDetector().detect(item(text)), text) == [expected]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["cookie: required", "session: established", "session=short", "sessionid=abc"],
+)
+def test_cookie_prose_is_not_a_secret(text: str) -> None:
+    assert not SecretDetector().detect(item(text))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "PWD=/home/heidi",
+        "pwd=~/project",
+        "PWD=C:\\Users\\heidi",
+        'token=request.POST["card_token"]',
+        "api_key=settings.CRM_KEY",
+        "secret=os.environ['SIGNING']",
+        "password=config.db_password",
+    ],
+)
+def test_paths_and_code_references_are_not_secrets(text: str) -> None:
+    assert not SecretDetector().detect(item(text))
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (f"Password={TEST_ONLY};Server=db", TEST_ONLY),
+        (f"PWD={TEST_ONLY}", TEST_ONLY),
+        ("password=/TEST_ONLY_slash", "/TEST_ONLY_slash"),
+        ("api_key=settingsTEST_ONLY", "settingsTEST_ONLY"),
+    ],
+)
+def test_real_values_near_those_exceptions_stay_found(text: str, expected: str) -> None:
+    assert spans(SecretDetector().detect(item(text)), text) == [expected]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("cvv=123", ["123"]),
+        ('{"cvc": "1234"}', ["1234"]),
+        ("CVV2: 123", ["123"]),
+        ("cvv=12", []),
+        ("cvv=12345", []),
+        ("cvv=enabled", []),
+    ],
+)
+def test_labelled_cvv(text: str, expected: list[str]) -> None:
+    findings = PaymentCardDetector().detect(item(text))
+    assert spans(findings, text) == expected
+    assert all(f.category == "pii.payment_card" for f in findings)
+
+
+def test_http_status_and_bytes_are_not_a_phone() -> None:
+    assert not PhoneDetector().detect(item('GET /x 200 1024 "-"'))
+
+
+def test_a_number_after_a_phone_keyword_is_still_a_phone() -> None:
+    assert PhoneDetector().detect(item("phone 202 5550143"))

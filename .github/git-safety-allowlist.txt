@@ -6,7 +6,7 @@
 CLAUDE.md a58ac2bcc6828f8531a0d1b3f61cb58e27c823a857a0aeaa368c91820ffc700a  # spec: list of credential field-name keywords
 CLAUDE.md 63620dc5c9b936caff111a9ea19cb4b36eaf3590fe6a7cc9259a12eb785f3cbe  # spec: description of secret pattern families
 README.md 8845968c83542e8a106a1d0ad5c26004670f4fc6bf11d8ea2604364d3e51be79  # prose: names the assignment-style pattern family
-docs/detector-coverage.md fc5ce202ff6c0aa451b9f3efb60286d8c098b91198a02349a463c04f8ce96d6c  # docs: truncated pattern shapes (AKIA..., ghp_...)
+docs/detector-coverage.md 0abd3cc196e7978beefc124c0e5a208c483aa967b875af08112ca95dceae6317  # docs: truncated pattern shapes (AKIA..., ghp_...)
 src/ciphergate/detectors/secrets.py 0be8dc53c00fa79d0c4bcf0c4a6ec93b23655565c14769042c8056d189f4074f  # docstring: pattern family names
 src/ciphergate/policy/validator.py 42a704681c0164151665c94d0c941063ac75e7662aa73f47525506f4a414fed8  # code: variable named disabled_credential
 src/ciphergate/transforms/pseudonymize.py 70051af9f3d35d758684434e74a4d9f1a20b0c6c9c33d673ffdc5b45fe0a10d9  # docstring: pseudonym token formula
