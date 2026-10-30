@@ -6,6 +6,18 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- `mac_address` detector (`pii.device_identifier`) and `iban` detector (`pii.bank_account`, mod-97
+  check). Both are on by default and can be turned off with `detectors.disabled`.
+
+### Changed
+
+- `email_regex` also finds percent-encoded addresses (`%40`) in text, and `secret_pattern` finds
+  values assigned to `PGPASSWORD`, `MYSQL_PWD` and similar names (`DBPASSWORD`, `ROOTPASSWORD`).
+  These values now follow your policy rules, so a run can redact, review or block content it
+  used to pass.
+
 ## [0.8.0] - 2026-10-30
 
 Adds the packaged policy templates to the Python API. Existing behaviour is unchanged.

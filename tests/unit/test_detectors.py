@@ -13,7 +13,9 @@ from ciphergate.detectors.field_names import (
     classify_field_name,
     normalize_field_name,
 )
+from ciphergate.detectors.iban import IbanDetector, iban_valid
 from ciphergate.detectors.ip_address import IPAddressDetector
+from ciphergate.detectors.mac_address import MacAddressDetector
 from ciphergate.detectors.network import InternalHostDetector
 from ciphergate.detectors.payment_card import PaymentCardDetector, luhn_valid
 from ciphergate.detectors.phone import PhoneDetector
@@ -390,3 +392,104 @@ def test_findings_never_contain_raw_values() -> None:
         rendered = repr(f) + str(f.location.to_dict()) + str(f.evidence)
         for secret in ("alice.test", "TEST_ONLY_NOT", "4111"):
             assert secret not in rendered
+
+
+# ----------------------------------------------------------------- mac address and iban
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("dhcp lease for 00:1A:2B:3C:4D:5E done", ["00:1A:2B:3C:4D:5E"]),
+        ("device 00-1a-2b-3c-4d-5e offline", ["00-1a-2b-3c-4d-5e"]),
+        ("port 001a.2b3c.4d5e up", ["001a.2b3c.4d5e"]),
+        ("mixed 00:1a-2b:3c:4d:5e", []),
+        ("null 00:00:00:00:00:00 broadcast ff:ff:ff:ff:ff:ff", []),
+        ("at 12:30:45 today", []),
+        ("seven 00:1a:2b:3c:4d:5e:6f groups", []),
+        ("host 2001:db8::1 up", []),
+    ],
+)
+def test_mac_address(text: str, expected: list[str]) -> None:
+    findings = MacAddressDetector().detect(item(text))
+    assert spans(findings, text) == expected
+    assert all(f.category == "pii.device_identifier" for f in findings)
+
+
+def test_mac_address_confidence_is_lower_when_all_digits() -> None:
+    assert MacAddressDetector().detect(item("id 12-34-56-78-90-12"))[0].confidence == 0.6
+    assert MacAddressDetector().detect(item("id 12-34-56-78-90-ab"))[0].confidence == 0.85
+
+
+IBAN = "GB82" + "WEST" + "12345698765432"  # the ISO 13616 example number
+IBAN_SPACED = "GB82 WEST 1234 5698 7654 32"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (f"payout to {IBAN} failed", [IBAN]),
+        (f"payout to {IBAN_SPACED} failed", [IBAN_SPACED]),
+        (f"payout to {IBAN_SPACED} DONE", [IBAN_SPACED]),
+        ("payout to GB83" + "WEST12345698765432 failed", []),
+        ("payout to " + IBAN.lower(), []),
+        ("code AB12 short", []),
+    ],
+)
+def test_iban(text: str, expected: list[str]) -> None:
+    findings = IbanDetector().detect(item(text))
+    assert spans(findings, text) == expected
+    assert all(f.category == "pii.bank_account" for f in findings)
+
+
+def test_iban_valid_rejects_bad_lengths() -> None:
+    assert iban_valid(IBAN)
+    assert not iban_valid("GB82WEST")
+
+
+def test_new_detectors_suppress_phone_matches() -> None:
+    detectors = DetectorSet(DetectorSettings())
+    text = f"account {IBAN_SPACED} and 12-34-56-78-90-12"
+    ids = {f.detector for f in detectors.scan(item(text))}
+    assert "phone_pattern" not in ids and {"iban", "mac_address"} <= ids
+
+
+def test_new_detectors_can_be_disabled() -> None:
+    detectors = DetectorSet(DetectorSettings(disabled=["mac_address", "iban"]))
+    assert not detectors.scan(item(f"{IBAN} 00:1A:2B:3C:4D:5E"))
+
+
+@pytest.mark.parametrize("value", [IBAN, "00:1A:2B:3C:4D:5E"])
+def test_replacement_must_not_look_real(value: str) -> None:
+    assert unsafe_replacement_reason(value) is not None
+
+
+# ------------------------------------------------------------- encoded and env-style values
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("GET /users?mail=alice.test%40example.com 404", "alice.test%40example.com"),
+        ("redirect /v?a=Alice%40EXAMPLE.org&b=1", "Alice%40EXAMPLE.org"),
+    ],
+)
+def test_percent_encoded_email(text: str, expected: str) -> None:
+    assert spans(EmailDetector().detect(item(text)), text) == [expected]
+
+
+def test_percent_40_without_an_address_is_ignored() -> None:
+    assert not EmailDetector().detect(item("progress 100%40 done"))
+
+
+@pytest.mark.parametrize(
+    "name", ["PGPASSWORD", "pgpassword", "MYSQL_PWD", "DBPASSWORD", "ROOTPASSWORD", "UserPassword"]
+)
+def test_env_style_password_names(name: str) -> None:
+    text = f"{name}=TEST_ONLY_NOT_A_CREDENTIAL psql"
+    assert spans(SecretDetector().detect(item(text)), text) == ["TEST_ONLY_NOT_A_CREDENTIAL"]
+
+
+@pytest.mark.parametrize("name", ["nopassword", "haspassword", "password_reset_enabled"])
+def test_other_password_words_stay_unmatched(name: str) -> None:
+    assert not SecretDetector().detect(item(f"{name}=enabled"))

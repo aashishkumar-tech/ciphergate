@@ -9,7 +9,9 @@ from ciphergate.detectors.custom_regex import CustomRegexDetector
 from ciphergate.detectors.dates import DateDetector
 from ciphergate.detectors.email import EmailDetector, is_reserved_email_domain
 from ciphergate.detectors.field_names import FieldNameDetector, PolicyClassificationDetector
+from ciphergate.detectors.iban import IbanDetector
 from ciphergate.detectors.ip_address import IPAddressDetector
+from ciphergate.detectors.mac_address import MacAddressDetector
 from ciphergate.detectors.network import InternalHostDetector
 from ciphergate.detectors.payment_card import PaymentCardDetector
 from ciphergate.detectors.phone import PhoneDetector
@@ -26,10 +28,14 @@ BUILTIN_DETECTOR_IDS: tuple[str, ...] = (
     "email_regex",
     "internal_host",
     "phone_pattern",
+    "mac_address",
+    "iban",
 )
 
 # Phone matching is the least specific pattern; drop phone spans that overlap these detectors.
-_PHONE_SUPPRESSORS = frozenset({"luhn_card", "ip_address", "date_pattern", "secret_pattern"})
+_PHONE_SUPPRESSORS = frozenset(
+    {"luhn_card", "ip_address", "date_pattern", "secret_pattern", "mac_address", "iban"}
+)
 
 
 FIELD_CONTEXT_DETECTORS = frozenset({"field_name", "policy_classification"})
@@ -59,6 +65,8 @@ class DetectorSet:
             "email_regex": EmailDetector(),
             "internal_host": InternalHostDetector(settings.internal_host_suffixes),
             "phone_pattern": PhoneDetector(),
+            "mac_address": MacAddressDetector(),
+            "iban": IbanDetector(),
         }
         for detector_id in BUILTIN_DETECTOR_IDS:
             if detector_id not in disabled:
@@ -173,6 +181,10 @@ def unsafe_replacement_reason(value: str) -> str | None:
         return f"looks like a credential ({secrets[0].evidence[-1]})"
     if PaymentCardDetector().detect(probe):
         return "looks like a payment card number"
+    if IbanDetector().detect(probe):
+        return "looks like a real IBAN"
+    if MacAddressDetector().detect(probe):
+        return "looks like a real MAC address"
     for f in EmailDetector().detect(probe):
         if "reserved_domain" not in f.evidence:
             return "email replacements must use a reserved domain such as example.invalid"
