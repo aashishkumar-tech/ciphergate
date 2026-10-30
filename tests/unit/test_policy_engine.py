@@ -322,3 +322,48 @@ transfers:
     gates, approvals = evaluate_gates(p, resolve_context(p, ctx("prd", "dev", "local_dev")))
     assert ReasonCode.PRD_TO_NONPRODUCTION_BLOCKED in {g.reason_code for g in gates}
     assert not approvals
+
+
+@pytest.mark.parametrize(
+    ("policy_name", "env", "target", "dest", "detector", "action", "rule_id"),
+    [
+        ("dev_local.yml", "dev", "dev", "local_dev", "stack_trace", Action.ALLOW,
+         "keep-stack-frames"),
+        # Only structural frames are kept: other proprietary.source findings still need review.
+        ("dev_local.yml", "dev", "dev", "local_dev", "custom:internal", Action.REVIEW, None),
+        ("developer_logs.yml", "prd", None, "production_monitoring", "stack_trace",
+         Action.ALLOW, "keep-stack-frames-trusted"),
+        ("developer_logs.yml", "dev", None, "approved_internal", "stack_trace", Action.ALLOW,
+         "keep-stack-frames-trusted"),
+        ("developer_logs.yml", "dev", None, "staging_test", "stack_trace", Action.REDACT,
+         "redact-stack-frames-elsewhere"),
+        ("developer_logs.yml", "prd", None, "external_ai", "stack_trace", Action.REDACT,
+         "redact-stack-frames-elsewhere"),
+        ("developer_logs.yml", "dev", None, "unknown", "stack_trace", Action.REDACT,
+         "redact-stack-frames-elsewhere"),
+        ("developer_logs.yml", "dev", None, "local_dev", "custom:internal", Action.REVIEW, None),
+    ],
+)  # fmt: skip
+def test_starter_policy_stack_frame_rules(
+    policy_file: Callable[[str], Policy],
+    policy_name: str,
+    env: str,
+    target: str | None,
+    dest: str,
+    detector: str,
+    action: Action,
+    rule_id: str | None,
+) -> None:
+    p = policy_file(policy_name)
+    f = finding("proprietary.source", path="/stack/frames/0", detector=detector, span=(2, 30))
+    d = decide(p, f, env, target, dest, fmt=InputFormat.STACKTRACE)
+    assert (d.action, d.rule_id) == (action, rule_id)
+
+
+def test_stack_frame_rules_never_need_missing_destination(
+    policy_file: Callable[[str], Policy],
+) -> None:
+    p = policy_file("developer_logs.yml")
+    f = finding("proprietary.source", path="/stack/frames/0", detector="stack_trace", span=(2, 9))
+    # No destination: neither destination-scoped rule may match; the run is gated anyway.
+    assert decide(p, f, "dev", fmt=InputFormat.STACKTRACE).action == Action.REVIEW

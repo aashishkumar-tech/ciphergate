@@ -6,6 +6,14 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Changed
+
+- Starter policies: `dev_local` keeps stack-trace frames and source lines (`stack_trace`
+  detector) for local debugging. `developer_logs` keeps them for `local_dev`, `approved_internal`
+  and `production_monitoring` and redacts them for every other destination. Before, these
+  findings fell back to review with `--format stacktrace`. Other `proprietary.source` findings
+  are unchanged.
+
 ## [0.6.0] - 2026-10-30
 
 Adds stack-trace-aware log input as `--format stacktrace`. Existing formats behave as before.

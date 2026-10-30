@@ -29,6 +29,16 @@ rules:
     action: allow
     reason: internal_hosts_and_ips_needed_for_local_debugging
 
+  # --format stacktrace: frame and source lines are the debugging context. Credentials and
+  # personal data on those lines are separate findings and stay redacted by the rules here.
+  - id: keep-stack-frames
+    priority: 400
+    match:
+      categories: [proprietary.source]
+      detectors: [stack_trace]
+    action: allow
+    reason: stack_frames_needed_for_local_debugging
+
   - id: redact-email
     priority: 300
     match:

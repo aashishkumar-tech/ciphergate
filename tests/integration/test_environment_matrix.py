@@ -215,3 +215,44 @@ def test_plan_and_apply_agree_across_matrix(tmp_path: Path, multi: Policy) -> No
         out = tmp_path / f"{env}-{dest}.jsonl"
         applied = sanitize_file(src, out, multi, ctx(env, target, dest))
         assert plan.summary["by_action"] == applied.summary["by_action"]
+
+
+TRACE = (
+    "Traceback (most recent call last):\n"
+    '  File "/srv/app/handlers.py", line 42, in handle\n'
+    "    user = load(email)\n"
+    "ValueError: no user alice.test@example.com\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("policy_name", "env", "target", "dest", "frames_kept"),
+    [
+        ("dev_local.yml", "dev", "dev", "local_dev", True),
+        ("developer_logs.yml", "dev", None, "local_dev", True),
+        ("developer_logs.yml", "prd", None, "production_monitoring", True),
+        ("developer_logs.yml", "stg", None, "staging_test", False),
+        ("developer_logs.yml", "prd", None, "external_ai", False),
+    ],
+)
+def test_stack_frames_follow_destination(
+    tmp_path: Path,
+    policy_file: Callable[[str], Policy],
+    policy_name: str,
+    env: str,
+    target: str | None,
+    dest: str,
+    frames_kept: bool,
+) -> None:
+    src = tmp_path / "trace.log"
+    src.write_text(TRACE, encoding="utf-8")
+    out = tmp_path / "trace.out.log"
+    report = sanitize_file(
+        src, out, policy_file(policy_name), ctx(env, target, dest),
+        SanitizeOptions(format=InputFormat.STACKTRACE),
+    )  # fmt: skip
+    assert report.status == RunStatus.SANITIZED, (report.gates, report.summary)
+    text = out.read_text(encoding="utf-8")
+    assert "alice.test@example.com" not in text  # never kept, whatever happens to frames
+    assert ("handlers.py" in text and "load(email)" in text) is frames_kept
+    assert ("[REDACTED:proprietary.source]" in text) is not frames_kept
