@@ -11,7 +11,7 @@ vendor ticket. CipherGate replaces that with a local, explainable, scriptable ga
 inspect  ->  plan  ->  sanitize --apply  ->  rescan
 ```
 
-> **Status: 0.8.0 (alpha).** No detector finds every sensitive value. A passing run means the
+> **Status: 0.9.0 (alpha).** No detector finds every sensitive value. A passing run means the
 > configured processing completed under the selected policy; it is **not** proof that the output
 > contains no sensitive information, and it is not a compliance (GDPR, HIPAA, PCI DSS, ...) or
 > anonymization guarantee. Policy templates must be reviewed before use.
