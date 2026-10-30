@@ -65,7 +65,8 @@ _PATTERNS: tuple[_Pattern, ...] = (
         "assignment",
         re.compile(
             r"(?i)(?<![a-z0-9])"
-            r"(?:password|passwd|passphrase|secret|api[_-]?key|apikey|access[_-]?token|"
+            r"(?:(?:pg|db|mysql|admin|root|user)?password|mysql_pwd|passwd|passphrase|secret|"
+            r"api[_-]?key|apikey|access[_-]?token|"
             r"refresh[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?key|private[_-]?key|"
             r"access[_-]?key|token|credentials?)"
             r"(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}(?:\\?[\"'])?"

@@ -12,6 +12,12 @@ _EMAIL_RE = re.compile(
     r"([A-Za-z0-9._%+-]{1,64})@((?:[A-Za-z0-9-]{1,63}\.){1,8}[A-Za-z]{2,63})"
     r"(?![A-Za-z0-9-])"
 )
+# Percent-encoded form in URLs and query strings: the "@" is written as %40.
+_ENCODED_EMAIL_RE = re.compile(
+    r"(?<![A-Za-z0-9._%+-])"
+    r"([A-Za-z0-9._%+-]{1,64})%40((?:[A-Za-z0-9-]{1,63}\.){1,8}[A-Za-z]{2,63})"
+    r"(?![A-Za-z0-9-])"
+)
 
 RESERVED_EMAIL_DOMAINS = ("example.com", "example.org", "example.net")
 RESERVED_EMAIL_TLDS = (".invalid", ".example", ".test", ".localhost")
@@ -31,10 +37,10 @@ class EmailDetector:
 
     def detect(self, item: ScanItem) -> list[Finding]:
         text = item.text
-        if not text or "@" not in text:
+        if not text or ("@" not in text and "%40" not in text):
             return []
         out: list[Finding] = []
-        for m in _EMAIL_RE.finditer(text):
+        for m in (*_EMAIL_RE.finditer(text), *_ENCODED_EMAIL_RE.finditer(text)):
             local, domain = m.group(1), m.group(2)
             if local.startswith(".") or local.endswith(".") or ".." in local or ".." in domain:
                 continue

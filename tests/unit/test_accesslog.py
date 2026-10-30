@@ -161,7 +161,8 @@ def test_field_context_and_decoded_values(
     assert ("pii.ip_address", "/remote_addr") in found
     assert ("pii.email", "/http_user_agent") in found  # only visible after \x40 decoding
     text_cats = [i["category"] for i in _items(tmp_path, line, InputFormat.TEXT, policy)]
-    assert "pii.email" not in text_cats
+    # Text mode sees the %40 form but does not decode log escapes such as \x40.
+    assert text_cats.count("pii.email") == 1
 
 
 def test_not_inferred_from_extension(tmp_path: Path, policy_text: Callable[[str], Policy]) -> None:
