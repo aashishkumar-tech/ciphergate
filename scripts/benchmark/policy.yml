@@ -1,0 +1,32 @@
+# Benchmark only, not a starter template: redacts every category so the output shows what was
+# detected. Do not use it on real data.
+policy_version: 1
+name: benchmark-redact-everything
+metadata:
+  description: "Benchmark only: redact every category so the output shows what was detected."
+context:
+  environment: dev
+  target_environment: dev
+  destination: local_dev
+  domain_profile: developer_logs
+  use_case: debugging
+settings:
+  strict: false
+  scan_json_keys: true
+  unknown_sensitive_behavior: review
+rules:
+  - id: redact-credentials
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: redact
+    reason: benchmark
+  - id: redact-rest
+    priority: 500
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive, network.telemetry, proprietary.source, security.internal, location.coarse, identifier.generic, unknown.sensitive_candidate]
+    action: redact
+    reason: benchmark
+defaults:
+  date.generic:
+    action: allow
