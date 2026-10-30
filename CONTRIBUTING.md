@@ -53,6 +53,8 @@ in Claude Code). In short:
   `chore/`). `main` changes only through squash-merged pull requests with green CI.
 - **Conventional Commits** (`fix(readers): scan CSV header cells`), checked by the `commit-msg`
   hook and, for PR titles, by CI (`scripts/check_commit_msg.py`).
+- **Detection benchmark** (`scripts/benchmark/`): an optional local tool for finding detector gaps.
+  Its results are not evidence for public claims; see its README.
 - **Safety check before every commit** (`scripts/git_safety_check.py --staged
   --require-feature-branch`; CI runs `--all`): refuses commits on `main`, env/key/data/output
   files, files over 1 MiB, and secret-like lines without a synthetic marker. Reviewed false
