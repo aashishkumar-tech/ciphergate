@@ -122,6 +122,12 @@ A context selector never matches missing context.
 | `review` | — | run needs human decision, nothing written |
 | `tokenize` | — | **rejected**: no token vault in this release |
 
+A rule or default that applies `redact`, `replace`, or any other non-`block`, non-`review` action
+to `credential.secret` toward a possibly untrusted destination validates with a warning, because
+a detector can match only part of a secret. A destination that is not pinned counts as possibly
+untrusted. A `hard: true` block that covers every untrusted destination, with no selectors other
+than `categories` and `destinations`, removes the warning.
+
 ## Precedence (deterministic)
 
 1. Engine hard constraints: missing/invalid context gates; credential never allowed (forced

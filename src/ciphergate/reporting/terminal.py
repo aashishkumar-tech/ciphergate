@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ciphergate.constants import DISCLAIMER
+from ciphergate.constants import DISCLAIMER, RESCAN_LIMIT
 from ciphergate.models.report import RunReport
 from ciphergate.pipeline.batch import BatchReport
 from ciphergate.reporting.safe_text import escape_control
@@ -31,9 +31,24 @@ def _location(loc: dict[str, Any]) -> str:
     return ", ".join(parts)
 
 
+def _rescan_verdict(rescan: dict[str, Any]) -> str:
+    if rescan["failed"]:
+        return "FAILED, gating findings remain"
+    if rescan["gating_by_category"]:
+        return "NOT ENFORCED, gating findings remain but strict is off"
+    return "no gating findings"
+
+
+def _headline(d: dict[str, Any]) -> str:
+    # Never print a bare PASSED for rescan: it reads as "this output is safe".
+    if d["command"] == "rescan" and d["rescan"] and not d["rescan"]["failed"]:
+        return _rescan_verdict(d["rescan"]).split(",")[0].upper()
+    return str(d["status"]).upper()
+
+
 def render_summary(report: RunReport, *, verbose: bool = False) -> str:
     d = report.to_dict()
-    lines = [f"CipherGate {d['command']}: {d['status'].upper()} (exit {d['exit_code']})"]
+    lines = [f"CipherGate {d['command']}: {_headline(d)} (exit {d['exit_code']})"]
     inp = d["input"]
     lines.append(
         f"  input:   {escape_control(str(inp['path']))} [{inp['format']}, "
@@ -89,12 +104,13 @@ def render_summary(report: RunReport, *, verbose: bool = False) -> str:
         )
     if d["rescan"]:
         r = d["rescan"]
-        verdict = "FAILED" if r["failed"] else "passed"
         lines.append(
-            f"  rescan: {verdict} (strict={r['strict']}) residuals: {_counts(r['counts'])}"
+            f"  rescan: {_rescan_verdict(r)} (strict={r['strict']}) "
+            f"residuals: {_counts(r['counts'])}"
         )
         if r["gating_by_category"]:
             lines.append(f"    gating residuals: {_counts(r['gating_by_category'])}")
+        lines.append(f"  rescan limit: {RESCAN_LIMIT}")
     out = d["output"]
     if out:
         if out.get("written"):

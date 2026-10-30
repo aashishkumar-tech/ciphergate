@@ -225,6 +225,34 @@ def _effective_destinations(doc: PolicyDocument, rule_dests: list[Destination] |
     return {str(d) for d in Destination}
 
 
+def _hard_blocked_destinations(doc: PolicyDocument, categories: frozenset[str]) -> set[str]:
+    """Destinations where a hard rule blocks every credential finding, whatever its field."""
+    blocked: set[str] = set()
+    for rule in doc.rules:
+        m = rule.match
+        if (
+            rule.hard
+            and rule.action == Action.BLOCK
+            and m.categories is not None
+            and CREDENTIAL_CATEGORY in _selector_can_cover(m.categories, categories)
+            and set(m.model_dump(exclude_none=True)) <= {"categories", "destinations"}
+        ):
+            blocked |= _effective_destinations(doc, m.destinations)
+    return blocked
+
+
+def _relaxes_credentials(
+    doc: PolicyDocument,
+    action: Action,
+    rule_dests: list[Destination] | None,
+    hard_blocked: set[str],
+) -> bool:
+    if action in (Action.BLOCK, Action.REVIEW):
+        return False
+    reachable = _effective_destinations(doc, rule_dests) - hard_blocked
+    return bool(reachable & {str(d) for d in UNTRUSTED_DESTINATIONS})
+
+
 def _selector_can_cover(selectors: list[str] | None, categories: frozenset[str]) -> set[str]:
     if selectors is None:
         return set(categories)
@@ -335,6 +363,7 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
     required_keys: set[str] = set()
     replacement_values: set[str] = set()
     seen_rules: set[str] = set()
+    hard_blocked = _hard_blocked_destinations(doc, categories)
     for i, rule in enumerate(doc.rules):
         where = f"rules[{i}]"
         if rule.id in seen_rules:
@@ -393,6 +422,15 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
                     f"action '{rule.action}' is never permitted for credential.secret",
                     "credential_unsafe_action",
                 )
+            )
+        if (
+            CREDENTIAL_CATEGORY in covered
+            and m.categories is not None
+            and _relaxes_credentials(doc, rule.action, m.destinations, hard_blocked)
+        ):
+            warnings.append(
+                f"rule '{rule.id}' applies '{rule.action}' to credential.secret toward a possibly "
+                "untrusted destination instead of blocking; detection can miss part of a secret"
             )
         if rule.action == Action.ALLOW:
             dests = _effective_destinations(doc, m.destinations)
@@ -491,6 +529,13 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
                     f"action '{spec.action}' is never permitted for credential.secret",
                     "credential_unsafe_action",
                 )
+            )
+        if CREDENTIAL_CATEGORY in covered and _relaxes_credentials(
+            doc, spec.action, None, hard_blocked
+        ):
+            warnings.append(
+                f"default '{sel}' applies '{spec.action}' to credential.secret toward a possibly "
+                "untrusted destination instead of blocking; detection can miss part of a secret"
             )
         if isinstance(params, PseudonymizeParams | DateShiftParams):
             required_keys.add(params.key_env)

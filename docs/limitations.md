@@ -5,7 +5,9 @@
 - Detection is incomplete. Names, addresses, government IDs and bank accounts are not detected by
   value in free text; secrets in custom formats or encoded forms are missed. See
   [detector-coverage.md](detector-coverage.md).
-- A clean rescan is a quality gate, not proof of safety. Rescan cannot verify date-shifted values
+- A clean rescan is a quality gate, not proof of safety. The terminal summary says "no gating
+  findings" for this reason, while the JSON report keeps `status: passed` for CI. Names and
+  addresses in free text are often missed. Rescan cannot verify date-shifted values
   (reported as `unverifiable`) and recognises CipherGate's own markers/pseudonyms/replacement
   constants as transformed output.
 - Confidence values are uncalibrated engineering estimates.

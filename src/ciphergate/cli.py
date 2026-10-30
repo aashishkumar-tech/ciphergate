@@ -749,7 +749,10 @@ def rescan_command(
     no_color: NoColorOpt = False,
     debug: DebugOpt = False,
 ) -> None:
-    """Report residual findings in an existing output. Read-only; never alters the file."""
+    """Report residual findings in an existing output. Read-only; never alters the file.
+
+    No gating findings does not mean the output is safe: rescan only sees what detectors match.
+    """
     _configure_logging(verbose, debug)
     _guard(
         debug,

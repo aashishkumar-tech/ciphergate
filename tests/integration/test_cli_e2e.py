@@ -197,6 +197,28 @@ def test_sanitize_missing_key_exit_6(tmp_path: Path, no_key_env: None) -> None:
     assert r.exit_code == 6 and not out.exists() and "missing" in r.stdout
 
 
+def test_rescan_summary_never_says_a_bare_pass(tmp_path: Path) -> None:
+    policy = POLICIES / "prd_external_ai.yml"
+    clean = tmp_path / "clean.log"
+    clean.write_text("service started\n", encoding="utf-8")
+    r = invoke("rescan", clean, "--policy", policy)
+    assert r.exit_code == 0
+    assert "NO GATING FINDINGS" in r.stdout and "does not mean the output is safe" in r.stdout
+    assert "PASSED" not in r.stdout and "passed" not in r.stdout.replace("--", "")
+
+    report = tmp_path / "report.json"
+    assert invoke("rescan", clean, "--policy", policy, "--report", report).exit_code == 0
+    assert json.loads(report.read_text(encoding="utf-8"))["status"] == "passed"
+
+
+def test_rescan_summary_says_when_gating_findings_are_not_enforced(tmp_path: Path) -> None:
+    src = tmp_path / "raw.csv"
+    shutil.copy(EXAMPLES / "sample.csv", src)
+    r = invoke("rescan", src, "--policy", POLICIES / "prd_external_ai.yml", "--no-strict")
+    assert r.exit_code == 0
+    assert "NOT ENFORCED" in r.stdout and "PASSED" not in r.stdout
+
+
 def test_rescan_exit_7_and_read_only(tmp_path: Path) -> None:
     src = tmp_path / "raw.csv"
     shutil.copy(EXAMPLES / "sample.csv", src)

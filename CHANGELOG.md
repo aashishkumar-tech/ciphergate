@@ -6,6 +6,14 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Changed
+
+- The `rescan` terminal summary no longer prints `PASSED`. It says `NO GATING FINDINGS`, or
+  `NOT ENFORCED` when gating findings remain with strict off, and states what rescan cannot see.
+  Exit codes and the JSON report's `status` are unchanged.
+- `validate-policy` warns when a rule or default handles `credential.secret` with anything other
+  than `block` or `review` toward a possibly untrusted destination.
+
 ## [0.10.0] - 2026-10-30
 
 Fixes a password leak in nested values and detects more credentials and identifiers. A run that
