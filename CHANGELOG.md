@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Python API for the packaged policy templates: `load_template(name)` returns a `Policy` and
+  `template_names()` lists the names. An unknown name raises `UsageError`.
+
 ## [0.7.1] - 2026-10-30
 
 Makes the starter policy templates available after `pip install`. Existing commands and

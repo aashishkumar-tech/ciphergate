@@ -455,6 +455,15 @@ report = sanitize_file("app.log", "app.clean.log", policy,
 print(report.status, report.exit_code)
 ```
 
+After `pip install`, there is no `policies/` folder. Load a packaged template by name instead;
+`template_names()` lists them. Templates require review for your data and destination.
+
+```python
+from ciphergate import load_template, template_names
+print(template_names())
+policy = load_template("developer_logs")
+```
+
 Streams and directories use the same pipeline and the same safety rules as the CLI:
 
 ```python

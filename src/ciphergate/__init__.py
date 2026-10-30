@@ -3,6 +3,8 @@
 Supported public API (everything else is internal and may change without notice)::
 
     load_policy(path) -> Policy
+    load_template(name) -> Policy        # a packaged template; review it before relying on it
+    template_names() -> list[str]
     validate_policy(path_or_policy) -> ValidationResult
     inspect_file(path, policy, context=None) -> RunReport
     plan_file(path, policy, context=None) -> RunReport
@@ -55,6 +57,7 @@ from ciphergate.pipeline.streams import (
     rescan_stream,
     sanitize_stream,
 )
+from ciphergate.policy.templates import load_template, template_names
 from ciphergate.policy.validator import (
     Policy,
     ValidationResult,
@@ -82,6 +85,7 @@ __all__ = [
     "inspect_file",
     "inspect_stream",
     "load_policy",
+    "load_template",
     "plan_directory",
     "plan_file",
     "plan_stream",
@@ -91,5 +95,6 @@ __all__ = [
     "sanitize_directory",
     "sanitize_file",
     "sanitize_stream",
+    "template_names",
     "validate_policy",
 ]

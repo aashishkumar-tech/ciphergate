@@ -7,6 +7,7 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from ciphergate.errors import UsageError
+from ciphergate.policy.validator import Policy, load_policy_text
 
 
 def _templates_dir() -> Traversable:
@@ -34,3 +35,8 @@ def read_template(name: str) -> str:
             code="unknown_policy_template",
         )
     return _templates_dir().joinpath(f"{name}.yml").read_text(encoding="utf-8")
+
+
+def load_template(name: str) -> Policy:
+    """Load a named template as a `Policy`. It is a starting point that requires review."""
+    return load_policy_text(read_template(name), source_name=f"{name}.yml")
