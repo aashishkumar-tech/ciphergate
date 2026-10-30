@@ -71,6 +71,8 @@ jobs:
           test "$(ciphergate --version)" = "ciphergate $VERSION"
           for p in policies/*.yml; do ciphergate validate-policy "$p" --quiet; done
           cd "$(mktemp -d)"
+          ciphergate init --template prd_external_ai --output packaged.yml --quiet
+          ciphergate validate-policy packaged.yml --quiet
           # A blocked release must exit 1 and publish nothing.
           set +e
           ciphergate sanitize "$GITHUB_WORKSPACE/examples/sample.log" --policy "$GITHUB_WORKSPACE/policies/prd_external_ai.yml" --output blocked.log --apply

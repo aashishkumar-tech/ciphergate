@@ -40,6 +40,36 @@ def test_init_refuses_overwrite(tmp_path: Path) -> None:
     assert invoke("init", "--output", target, "--force").exit_code == 0
 
 
+def test_init_lists_every_policy_template() -> None:
+    r = invoke("init", "--list-templates")
+    assert r.exit_code == 0
+    assert r.stdout.split() == sorted(p.stem for p in POLICIES.glob("*.yml"))
+
+
+@pytest.mark.parametrize("policy", sorted(POLICIES.glob("*.yml")), ids=lambda p: p.stem)
+def test_init_template_writes_a_valid_copy(tmp_path: Path, policy: Path) -> None:
+    target = tmp_path / "p.yml"
+    r = invoke("init", "--template", policy.stem, "--output", target)
+    assert r.exit_code == 0 and "template" in r.stdout.lower()
+    assert target.read_text(encoding="utf-8") == policy.read_text(encoding="utf-8")
+    assert invoke("validate-policy", target).exit_code == 0
+
+
+def test_init_template_refuses_overwrite(tmp_path: Path) -> None:
+    target = tmp_path / "p.yml"
+    target.write_text("keep", encoding="utf-8")
+    assert invoke("init", "--template", "dev_local", "--output", target).exit_code == 5
+    assert target.read_text(encoding="utf-8") == "keep"
+
+
+@pytest.mark.parametrize("name", ["nope", "../pyproject", "dev_local.yml", ""])
+def test_init_unknown_template_fails_and_writes_nothing(tmp_path: Path, name: str) -> None:
+    target = tmp_path / "p.yml"
+    r = invoke("init", "--template", name, "--output", target)
+    assert r.exit_code == 2
+    assert "--list-templates" in r.output and not target.exists()
+
+
 def test_validate_policy_exit_codes(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yml"
     bad.write_text(

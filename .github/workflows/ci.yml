@@ -118,6 +118,9 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/examples" "$GITHUB_WORKSPACE/policies" .
           ciphergate --version
           ciphergate --help > /dev/null
+          # Templates must come from the installed wheel: nothing here is copied from the repo.
+          (cd "$(mktemp -d)" && test "$(ciphergate init --list-templates | wc -l)" -eq "$(ls "$GITHUB_WORKSPACE"/policies/*.yml | wc -l)" \
+            && ciphergate init --template prd_external_ai --output p.yml && ciphergate validate-policy p.yml)
           ciphergate init --output ciphergate-policy.yml
           ciphergate validate-policy ciphergate-policy.yml
           # Ephemeral, per-run synthetic key; never printed or stored.

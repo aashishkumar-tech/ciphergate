@@ -74,6 +74,7 @@ from ciphergate.pipeline.stdio import (
 )
 from ciphergate.policy.context import evaluate_gates, resolve_context
 from ciphergate.policy.engine import PolicyEngine
+from ciphergate.policy.templates import read_template, template_names
 from ciphergate.policy.validator import load_policy, validate_policy
 from ciphergate.reporting.safe_text import escape_control
 from ciphergate.reporting.serializer import (
@@ -351,6 +352,13 @@ def init_command(
     output: Annotated[
         Path, typer.Option("--output", "-o", help="Where to write the policy.")
     ] = Path("ciphergate-policy.yml"),
+    template: Annotated[
+        str | None,
+        typer.Option("--template", "-t", help="Named template (see --list-templates)."),
+    ] = None,
+    list_templates: Annotated[
+        bool, typer.Option("--list-templates", help="List named templates and exit.")
+    ] = False,
     force: ForceOpt = False,
     quiet: QuietOpt = False,
     debug: DebugOpt = False,
@@ -358,12 +366,17 @@ def init_command(
     """Write a starter policy template (it MUST be reviewed before real use)."""
 
     def body() -> int:
-        validate_output_path(output, protected=[], force=force, label="policy")
+        if list_templates:
+            sys.stdout.write("".join(f"{name}\n" for name in template_names()))
+            return 0
         text = (
-            resources.files("ciphergate")
+            read_template(template)
+            if template is not None
+            else resources.files("ciphergate")
             .joinpath("templates/starter_policy.yml")
             .read_text(encoding="utf-8")
         )
+        validate_output_path(output, protected=[], force=force, label="policy")
         with AtomicOutput(output, force=force) as out:
             out.stream.write(text)
             out.publish()

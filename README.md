@@ -78,7 +78,23 @@ ciphergate --version
 
 Runtime dependencies: `typer`, `pydantic`, `PyYAML`.
 
+## Quick start after `pip install`
+
+The policy templates ship with the package. Copy one, review it, then run it on your own file:
+
+```bash
+ciphergate init --list-templates
+ciphergate init --template developer_logs --output developer_logs.yml
+ciphergate validate-policy developer_logs.yml
+ciphergate inspect app.log --policy developer_logs.yml --environment dev --destination local_dev
+```
+
+Every template is a starting point that requires review for your data and destination.
+
 ## Quick start (synthetic examples)
+
+These commands run from a clone of this repository, because `examples/` is not in the package.
+`policies/` in a clone holds the same templates that `ciphergate init --template` writes.
 
 ```bash
 # 1. Start from a template (refuses to overwrite without --force) and validate it.
