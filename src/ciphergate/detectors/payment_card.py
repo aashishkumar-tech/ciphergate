@@ -12,6 +12,9 @@ from ciphergate.detectors.base import make_finding, preceding_context
 from ciphergate.models.finding import Finding, ScanItem
 
 _CARD_RE = re.compile(r"(?<![0-9A-Za-z_])(\d(?:[ -]?\d){12,18})(?![0-9A-Za-z_])")
+_CVV_RE = re.compile(
+    r"(?i)(?<![a-z0-9])(?:cvv2?|cvc2?)(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}(?:\\?[\"'])?(\d{3,4})(?!\d)"
+)
 _KEYWORDS = ("card", "visa", "mastercard", "amex", "pan", "cc", "credit", "debit", "payment")
 
 
@@ -45,9 +48,21 @@ class PaymentCardDetector:
 
     def detect(self, item: ScanItem) -> list[Finding]:
         text = item.text
-        if not text or sum(c.isdigit() for c in text) < 13:
+        if not text:
             return []
-        out: list[Finding] = []
+        out = [
+            make_finding(
+                item,
+                category="pii.payment_card",
+                detector=self.id,
+                confidence=0.85,
+                evidence=("pattern_match", "context_keyword"),
+                span=(m.start(1), m.end(1)),
+            )
+            for m in _CVV_RE.finditer(text)
+        ]
+        if sum(c.isdigit() for c in text) < 13:
+            return out
         for m in _CARD_RE.finditer(text):
             raw = m.group(1)
             digits = raw.replace(" ", "").replace("-", "")

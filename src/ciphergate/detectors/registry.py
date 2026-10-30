@@ -16,6 +16,7 @@ from ciphergate.detectors.network import InternalHostDetector
 from ciphergate.detectors.payment_card import PaymentCardDetector
 from ciphergate.detectors.phone import PhoneDetector
 from ciphergate.detectors.secrets import PEM_BEGIN_RE, PEM_END_RE, SecretDetector
+from ciphergate.detectors.ssn import SsnDetector
 from ciphergate.models.finding import Finding, ScanItem
 from ciphergate.models.policy import DetectorSettings, PolicyDocument
 
@@ -30,11 +31,20 @@ BUILTIN_DETECTOR_IDS: tuple[str, ...] = (
     "phone_pattern",
     "mac_address",
     "iban",
+    "ssn_pattern",
 )
 
 # Phone matching is the least specific pattern; drop phone spans that overlap these detectors.
 _PHONE_SUPPRESSORS = frozenset(
-    {"luhn_card", "ip_address", "date_pattern", "secret_pattern", "mac_address", "iban"}
+    {
+        "luhn_card",
+        "ip_address",
+        "date_pattern",
+        "secret_pattern",
+        "mac_address",
+        "iban",
+        "ssn_pattern",
+    }
 )
 
 
@@ -67,6 +77,7 @@ class DetectorSet:
             "phone_pattern": PhoneDetector(),
             "mac_address": MacAddressDetector(),
             "iban": IbanDetector(),
+            "ssn_pattern": SsnDetector(),
         }
         for detector_id in BUILTIN_DETECTOR_IDS:
             if detector_id not in disabled:
@@ -185,6 +196,8 @@ def unsafe_replacement_reason(value: str) -> str | None:
         return "looks like a real IBAN"
     if MacAddressDetector().detect(probe):
         return "looks like a real MAC address"
+    if SsnDetector().detect(probe):
+        return "looks like a real government identifier"
     for f in EmailDetector().detect(probe):
         if "reserved_domain" not in f.evidence:
             return "email replacements must use a reserved domain such as example.invalid"

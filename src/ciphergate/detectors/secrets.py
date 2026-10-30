@@ -69,8 +69,39 @@ _PATTERNS: tuple[_Pattern, ...] = (
             r"api[_-]?key|apikey|access[_-]?token|"
             r"refresh[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?key|private[_-]?key|"
             r"access[_-]?key|token|credentials?)"
+            r"(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}"
+            # Spring Actuator and similar dumps nest the value in an object.
+            r"(?:\{\s{0,3}\\?[\"']value\\?[\"']\s{0,3}:\s{0,3})?(?:\\?[\"'])?"
+            r"([^\s\"'\\,;&}]{1,512})"
+        ),
+        1,
+        0.8,
+    ),
+    _Pattern(
+        "camel_case_password",
+        re.compile(
+            r"(?<![A-Za-z0-9])[a-z][A-Za-z0-9]{0,40}Password"
             r"(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}(?:\\?[\"'])?"
             r"([^\s\"'\\,;&}]{1,512})"
+        ),
+        1,
+        0.8,
+    ),
+    _Pattern(
+        "cookie_header",
+        re.compile(
+            r"(?i)(?<![a-z0-9_-])(?:set-)?cookie(?:\\?[\"'])?\s{0,3}:\s{0,3}(?:\\?[\"'])?"
+            r"([^\s=;\"']{1,128}=[^\r\n\"']{1,2048})"
+        ),
+        1,
+        0.85,
+    ),
+    _Pattern(
+        "session_cookie",
+        re.compile(
+            r"(?i)(?<![a-z0-9_-])(?:(?:sessionid|jsessionid|phpsessid|connect\.sid|csrftoken|"
+            r"csrfmiddlewaretoken|xsrf-token)(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}|session=)"
+            r"(?:\\?[\"'])?([^\s\"'\\,;&}]{8,512})"
         ),
         1,
         0.8,
@@ -78,8 +109,28 @@ _PATTERNS: tuple[_Pattern, ...] = (
 )
 
 _PLACEHOLDER_VALUES = frozenset(
-    {"", "null", "none", "nil", "undefined", "true", "false", "redacted", "***", "******", "xxx"}
+    {
+        "",
+        "null",
+        "none",
+        "nil",
+        "undefined",
+        "true",
+        "false",
+        "redacted",
+        "***",
+        "******",
+        "xxx",
+        "{",
+        "[",
+    }
 )
+# Code that reads a secret, not the secret. Only well-known names, because a dotted value can
+# itself be a password.
+_CODE_REFERENCE_RE = re.compile(
+    r"(?:settings|config|request|self|this|args|params|env|os\.environ|process\.env)[.\[]"
+)
+_PATH_VALUE_RE = re.compile(r"(?:/|~/|[A-Za-z]:\\)")
 
 
 def _is_placeholder(value: str) -> bool:
@@ -110,13 +161,22 @@ class SecretDetector:
             for m in pattern.regex.finditer(text):
                 start, end = m.start(pattern.group), m.end(pattern.group)
                 value = m.group(pattern.group)
-                if _is_placeholder(value):
+                if _is_placeholder(value) or self._is_reference(pattern.name, m, value):
                     continue
                 if any(s <= start and end <= e for s, e in covered):
                     continue
                 covered.append((start, end))
                 out.append(self._finding(item, (start, end), pattern.name, pattern.confidence))
         return out
+
+    @staticmethod
+    def _is_reference(family: str, match: re.Match[str], value: str) -> bool:
+        if family not in ("assignment", "connection_string_password"):
+            return False
+        if _CODE_REFERENCE_RE.match(value):
+            return True
+        # PWD is also the shell's working directory.
+        return match.group(0)[:3].lower() == "pwd" and bool(_PATH_VALUE_RE.match(value))
 
     def _finding(
         self, item: ScanItem, span: tuple[int, int], family: str, confidence: float
