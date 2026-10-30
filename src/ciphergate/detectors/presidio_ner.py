@@ -1,4 +1,4 @@
-"""Optional local NER detector backed by Microsoft Presidio (``pip install 'ciphergate[ner]'``).
+"""Optional local NER detector backed by Microsoft Presidio (``pip install 'ciphergate-cli[ner]'``).
 
 Off by default; enabled only by ``detectors.presidio.enabled: true`` in the policy. Safety:
 
@@ -41,7 +41,7 @@ def load_analyzer(language: str, model: str) -> Any:
     if not _installed(PACKAGE):
         raise DetectorUnavailableError(
             "detectors.presidio is enabled but the optional NER extra is not installed "
-            "(pip install 'ciphergate[ner]')",
+            "(pip install 'ciphergate-cli[ner]')",
             code="ner_not_installed",
         )
     if not _installed(model):

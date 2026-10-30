@@ -1,0 +1,136 @@
+name: publish
+
+# Runs when a GitHub release is published. Builds the distributions once, on a GitHub runner, from
+# the release tag; attaches them with SHA256SUMS to the release; then uploads the same files to
+# PyPI as "ciphergate-cli" with Trusted Publishing (short-lived OIDC credential, no stored token).
+# The "pypi" environment requires a maintainer's approval before anything is uploaded.
+#
+# Third-party actions are pinned to full commit SHAs; checkout does not persist the credential.
+# The release tag reaches shell steps only through environment variables, never inline.
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build and check distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Check the tag matches the package version and is on main
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('src/ciphergate/__init__.py').read_text()).group(1))")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::release tag does not match __version__ (expected v$version)"
+            exit 1
+          fi
+          git merge-base --is-ancestor HEAD origin/main
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build==1.6.1 twine==7.0.0
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) python -m build --outdir dist
+          python -m twine check --strict dist/*
+      - name: Check the file names
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ls dist
+          test "$(ls dist | wc -l)" -eq 2
+          test -f "dist/ciphergate_cli-$VERSION-py3-none-any.whl"
+          test -f "dist/ciphergate_cli-$VERSION.tar.gz"
+      - name: Install the wheel into a fresh venv and smoke-test it
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python -m venv /tmp/cg
+          /tmp/cg/bin/pip install dist/*.whl
+          export PATH=/tmp/cg/bin:$PATH
+          test "$(ciphergate --version)" = "ciphergate $VERSION"
+          for p in policies/*.yml; do ciphergate validate-policy "$p" --quiet; done
+          cd "$(mktemp -d)"
+          # A blocked release must exit 1 and publish nothing.
+          set +e
+          ciphergate sanitize "$GITHUB_WORKSPACE/examples/sample.log" --policy "$GITHUB_WORKSPACE/policies/prd_external_ai.yml" --output blocked.log --apply
+          code=$?
+          set -e
+          test "$code" -eq 1 && test ! -e blocked.log
+      - name: Write SHA256SUMS
+        run: |
+          mkdir sums
+          (cd dist && sha256sum -- *) > sums/SHA256SUMS
+          cat sums/SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sums
+          path: sums/SHA256SUMS
+          if-no-files-found: error
+
+  attach:
+    name: attach files to the GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sums
+          path: dist
+      - name: Verify checksums and upload (never overwrites existing assets)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          gh release upload --repo "$GITHUB_REPOSITORY" "$TAG" ./*.whl ./*.tar.gz SHA256SUMS
+
+  pypi:
+    name: upload to PyPI (needs approval)
+    needs: [build, attach]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ciphergate-cli/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

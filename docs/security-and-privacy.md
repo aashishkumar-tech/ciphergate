@@ -97,3 +97,14 @@ succeeded; stdout then carries no human text.
 `typer` (+ `click`, `rich` transitively — rich tracebacks are disabled because they print local
 variables), `pydantic`, `PyYAML` (safe loader subclass). No lockfile, SBOM or dependency
 vulnerability scan is provided in this release.
+
+## Release publishing
+
+Releases are built only by `.github/workflows/publish.yml`, on a GitHub-hosted runner, from the
+release tag. The workflow first checks that the tag matches `__version__` and is on `main`. It
+attaches the wheel, the sdist and `SHA256SUMS` to the GitHub release, then uploads the same files
+to PyPI as `ciphergate-cli`. The PyPI upload uses Trusted Publishing: a short-lived OIDC
+credential, so no PyPI token is stored in the repository. It runs only in the `pypi` GitHub
+environment, which requires the maintainer's approval. The upload action produces PEP 740
+attestations by default. Releases up to 0.6.1 were built on the maintainer's machine and are
+only on GitHub. Do not `pip install ciphergate`: that PyPI name belongs to an unrelated project.

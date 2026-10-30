@@ -3,7 +3,9 @@ requires = ["hatchling>=1.27"]  # PEP 639 license metadata
 build-backend = "hatchling.build"
 
 [project]
-name = "ciphergate"
+# PyPI distribution name ("ciphergate" on PyPI is an unrelated project). The import package
+# and the CLI command are both "ciphergate".
+name = "ciphergate-cli"
 dynamic = ["version"]
 description = "Local-first, environment- and destination-aware inspection and sanitization of logs and test datasets."
 readme = "README.md"
@@ -31,6 +33,12 @@ dependencies = [
     # Safe YAML loading for human-authored policies.
     "PyYAML>=6.0.1,<7.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aashishkumar-tech/ciphergate"
+Source = "https://github.com/aashishkumar-tech/ciphergate"
+Issues = "https://github.com/aashishkumar-tech/ciphergate/issues"
+Changelog = "https://github.com/aashishkumar-tech/ciphergate/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 # Optional local NER (#7). Also needs a spaCy model installed separately; never downloaded.
