@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-30
+
+First release published to PyPI. CLI, API and policy behaviour are unchanged, except for the
+corrected NER install hint below.
+
 ### Changed
 
 - The PyPI distribution is now named `ciphergate-cli`, because `ciphergate` on PyPI is an
@@ -254,7 +259,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.4.0...v0.5.0

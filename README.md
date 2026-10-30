@@ -11,7 +11,7 @@ vendor ticket. CipherGate replaces that with a local, explainable, scriptable ga
 inspect  ->  plan  ->  sanitize --apply  ->  rescan
 ```
 
-> **Status: 0.6.1 (alpha).** No detector finds every sensitive value. A passing run means the
+> **Status: 0.7.0 (alpha).** No detector finds every sensitive value. A passing run means the
 > configured processing completed under the selected policy; it is **not** proof that the output
 > contains no sensitive information, and it is not a compliance (GDPR, HIPAA, PCI DSS, ...) or
 > anonymization guarantee. Policy templates must be reviewed before use.
@@ -63,7 +63,7 @@ python -m pip install ciphergate-cli
 ```
 
 Do not run `pip install ciphergate`: that PyPI name belongs to an unrelated project. PyPI uploads
-start with the first release after 0.6.1. Older versions are only on
+start with 0.7.0. Older versions are only on
 [GitHub releases](https://github.com/aashishkumar-tech/ciphergate/releases), as a wheel, an sdist
 and `SHA256SUMS`.
 
