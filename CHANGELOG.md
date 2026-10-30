@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-31
+
+Makes a clean rescan harder to mistake for proof of safety. Scripts that read `PASSED` from the
+`rescan` terminal output need updating; exit codes and the JSON report do not change.
+
 ### Changed
 
 - The `rescan` terminal summary no longer prints `PASSED`. It says `NO GATING FINDINGS`, or
@@ -323,7 +328,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.1...v0.8.0
