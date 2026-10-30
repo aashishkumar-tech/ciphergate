@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-30
+
+Detects more values. A run that passed before can now redact, review or block, so re-check your
+policies before upgrading a gate.
+
 ### Added
 
 - `mac_address` detector (`pii.device_identifier`) and `iban` detector (`pii.bank_account`, mod-97
@@ -291,7 +296,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.1...v0.7.0
