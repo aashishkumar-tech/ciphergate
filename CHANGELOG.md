@@ -6,6 +6,10 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-30
+
+Starter-policy update for `--format stacktrace`. No code changes.
+
 ### Changed
 
 - Starter policies: `dev_local` keeps stack-trace frames and source lines (`stack_trace`
@@ -236,7 +240,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.3.0...v0.4.0
