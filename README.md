@@ -115,6 +115,7 @@ ciphergate sanitize examples/sample.csv --policy policies/prd_external_ai.yml \
   --output build/sample.sanitized.csv --report build/sample.report.json --apply
 
 # 5. Rescan the output (read-only). Exit 7 if gating residual findings remain.
+# A clean result only means no gating findings. It does not show the output is safe.
 ciphergate rescan build/sample.sanitized.csv --policy policies/prd_external_ai.yml
 ```
 

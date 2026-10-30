@@ -272,3 +272,7 @@ DISCLAIMER = (
     "It does not prove that the output contains no sensitive information; "
     "detectors can miss values."
 )
+RESCAN_LIMIT = (
+    "rescan only sees what the enabled detectors match. No gating findings does not mean the "
+    "output is safe; names and addresses in free text are often missed."
+)

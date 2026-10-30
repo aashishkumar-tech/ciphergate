@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from ciphergate import load_policy
 from ciphergate.errors import PolicyValidationError
 from ciphergate.policy.validator import Policy, validate_policy
 from tests.conftest import MINIMAL_POLICY, POLICIES
@@ -136,6 +137,71 @@ def test_credential_generalize_rejected(policy_text: Callable[[str], Policy]) ->
         "\n    action: generalize\n    params: {strategy: year}\n",
     )
     assert "credential_unsafe_action" in codes(e)
+
+
+CREDENTIAL_RULE = "rules:\n  - id: r\n    match: {categories: [credential.secret]}\n"
+
+
+@pytest.mark.parametrize(
+    ("action", "extra", "warns"),
+    [
+        ("redact", "", True),
+        ("block", "", False),
+        ("review", "", False),
+        (
+            "redact",
+            "    match: {categories: [credential.secret], destinations: [local_dev]}\n",
+            False,
+        ),
+        (
+            "redact",
+            "    match: {categories: [credential.secret], destinations: [external_ai]}\n",
+            True,
+        ),
+    ],
+)
+def test_credential_rule_short_of_block_warns(
+    policy_text: Callable[[str], Policy], action: str, extra: str, warns: bool
+) -> None:
+    head = "rules:\n  - id: r\n" + extra if extra else CREDENTIAL_RULE
+    p = policy_text(HEAD + head + f"    action: {action}\n")
+    assert any("instead of blocking" in w for w in p.warnings) is warns
+
+
+def test_credential_default_short_of_block_warns(policy_text: Callable[[str], Policy]) -> None:
+    p = policy_text(HEAD + "defaults:\n  credential.*: {action: redact}\n")
+    assert any("instead of blocking" in w for w in p.warnings)
+
+
+HARD_BLOCK = (
+    "  - id: b\n    priority: 1000\n    hard: true\n"
+    "    match:\n      categories: [credential.secret]\n{scope}"
+    "    action: block\n"
+)
+EVERY_UNTRUSTED = "      destinations: [external_vendor, external_ai, public_repository, unknown]\n"
+
+
+def test_hard_block_on_every_untrusted_destination_silences_the_warning(
+    policy_text: Callable[[str], Policy],
+) -> None:
+    rule = CREDENTIAL_RULE + "    action: redact\n"
+    covered = policy_text(HEAD + rule + HARD_BLOCK.format(scope=EVERY_UNTRUSTED))
+    assert not any("instead of blocking" in w for w in covered.warnings)
+
+
+def test_partial_hard_block_keeps_the_warning(policy_text: Callable[[str], Policy]) -> None:
+    rule = CREDENTIAL_RULE + "    action: redact\n"
+    scope = "      destinations: [external_ai]\n"
+    partial = policy_text(HEAD + rule + HARD_BLOCK.format(scope=scope))
+    assert any("instead of blocking" in w for w in partial.warnings)
+    fields = "      field_names: [password]\n"
+    narrow = policy_text(HEAD + rule + HARD_BLOCK.format(scope=fields))
+    assert any("instead of blocking" in w for w in narrow.warnings)
+
+
+@pytest.mark.parametrize("path", sorted(POLICIES.glob("*.yml")), ids=lambda p: p.stem)
+def test_shipped_policies_do_not_relax_credentials(path: Path) -> None:
+    assert not any("instead of blocking" in w for w in load_policy(path).warnings)
 
 
 def test_high_risk_allow_needs_acknowledgement(policy_text: Callable[[str], Policy]) -> None:
