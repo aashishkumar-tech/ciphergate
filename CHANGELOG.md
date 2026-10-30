@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- The starter policy templates now ship in the wheel. `ciphergate init --template NAME` writes
+  one to a file and `ciphergate init --list-templates` lists them, so a `pip install` no longer
+  needs a repository clone to get them. Plain `ciphergate init` is unchanged.
+
 ## [0.7.0] - 2026-10-30
 
 First release published to PyPI. CLI, API and policy behaviour are unchanged, except for the
