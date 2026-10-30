@@ -18,7 +18,8 @@ allowed-tools: Read, Grep, Glob, Bash(python -m pytest *), Bash(ciphergate *), B
 5. **Docs honesty**: README, `docs/limitations.md`, `docs/detector-coverage.md`, SECURITY.md
    contain no compliance or "guaranteed" claims and match current flags/exit codes.
 6. **Blockers needing the maintainer**: LICENSE still a placeholder? SECURITY.md contact still
-   a placeholder? Package name availability checked? These block a *public* release.
+   a placeholder? These block a *public* release. The PyPI name is `ciphergate-cli` (`ciphergate`
+   on PyPI is an unrelated project); `.github/workflows/publish.yml` uploads it on release.
 7. **CI**: `.github/workflows/ci.yml` runs lint, types, tests, policy validation and the
    install smoke test on all supported Python versions.
 8. Walk the CLAUDE.md section 18 checklist and mark each item met / not met / not verified.

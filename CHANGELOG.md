@@ -6,6 +6,20 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Changed
+
+- The PyPI distribution is now named `ciphergate-cli`, because `ciphergate` on PyPI is an
+  unrelated project. The import package and the `ciphergate` command are unchanged. The optional
+  NER extra is `ciphergate-cli[ner]`: the old hint `pip install 'ciphergate[ner]'` would have
+  installed that unrelated package.
+
+### Added
+
+- Release publishing workflow (`.github/workflows/publish.yml`). On each published GitHub
+  release it builds from the tag on a GitHub runner, checks and smoke-tests the files, and
+  attaches them with `SHA256SUMS`. After maintainer approval it uploads the same files to PyPI
+  with Trusted Publishing (no stored token).
+
 ## [0.6.1] - 2026-10-30
 
 Starter-policy update for `--format stacktrace`. No code changes.

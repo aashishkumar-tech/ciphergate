@@ -55,6 +55,20 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
 
 Requires Python 3.11+.
 
+**From PyPI** (the package is named `ciphergate-cli`; the command and `import ciphergate` stay
+`ciphergate`):
+
+```bash
+python -m pip install ciphergate-cli
+```
+
+Do not run `pip install ciphergate`: that PyPI name belongs to an unrelated project. PyPI uploads
+start with the first release after 0.6.1. Older versions are only on
+[GitHub releases](https://github.com/aashishkumar-tech/ciphergate/releases), as a wheel, an sdist
+and `SHA256SUMS`.
+
+**From source:**
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
@@ -180,7 +194,7 @@ optional detector based on [Microsoft Presidio](https://microsoft.github.io/pres
 them. It is **off by default** and not part of the base install:
 
 ```bash
-python -m pip install "ciphergate[ner]"
+python -m pip install "ciphergate-cli[ner]"
 python -m spacy download en_core_web_lg   # one-time, explicit; CipherGate never downloads models
 ```
 

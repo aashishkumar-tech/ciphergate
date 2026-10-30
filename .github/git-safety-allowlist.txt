@@ -20,3 +20,5 @@ tests/unit/test_detectors.py ae2260d5177a9f774d9cb9b58ce86126b83761066874be8f0f3
 tests/unit/test_detectors.py 4677d2b04f4e1fd0196316c7f7cb03f122cbd564580dfc0dad5b4dd015760b2f  # synthetic weak-password test vector
 tests/unit/test_policy_precedence.py 23cf65bc79b43ea83918b553314e74ed1fbd352b03817ba3903082c647bdef85  # YAML test: credential.secret category name
 tests/unit/test_properties.py 5310b9f34731992e6e5fcada291cc7088aa454f2b6dc6e304ebae2dee9ea22e9  # synthetic repeated PEM header (resource-limit test)
+.github/workflows/publish.yml 1697121df8c26032ce0e537cddcd14046ed37856a46c315803b42b5e2703a51f  # workflow: gh reads the ephemeral job token reference (no credential material)
+.github/workflows/publish.yml ca79bb5a02837da7d07404f91e982ddd583b0d5dac897f52f40e1404c478e9b8  # workflow: OIDC permission name required by GitHub for Trusted Publishing

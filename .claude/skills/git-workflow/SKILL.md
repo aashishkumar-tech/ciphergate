@@ -143,8 +143,25 @@ to the new version, bump `__version__` in `src/ciphergate/__init__.py` (via a PR
 ```bash
 git tag -a vX.Y.Z -m "CipherGate vX.Y.Z"     # annotated; signed (-s) if the user has signing set up
 git push origin vX.Y.Z
-gh release create vX.Y.Z --verify-tag --notes-file <release notes from CHANGELOG>
+gh release create vX.Y.Z --verify-tag --latest --notes-file <release notes from CHANGELOG>
 ```
+
+Attach no files. Publishing the release starts `.github/workflows/publish.yml`, which:
+
+1. builds the wheel and sdist on a GitHub runner from the tag (after checking that the tag equals
+   `v` + `__version__` and is on `main`);
+2. runs `twine check` and smoke-tests the wheel;
+3. attaches the files and `SHA256SUMS` to the release;
+4. waits for the maintainer to approve the `pypi` environment;
+5. uploads the same files to PyPI as `ciphergate-cli` (Trusted Publishing, no stored token).
+
+Approving the PyPI deployment is the user's step; do not approve it on their behalf. Afterwards,
+download the release assets and run `sha256sum -c SHA256SUMS`. Then check that the PyPI file
+hashes (`https://pypi.org/pypi/ciphergate-cli/X.Y.Z/json`) match.
+
+Never build or upload distributions by hand. PyPI never accepts the same file name twice: if a
+job fails, fix the cause and re-run the failed jobs. If a bad file reached PyPI, yank that
+version and release a new one.
 
 Releases are blocked while `LICENSE` is a placeholder or `SECURITY.md` has no real contact
 (see `/release-readiness`).
