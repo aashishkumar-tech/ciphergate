@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-30
+
+Makes the starter policy templates available after `pip install`. Existing commands and
+template contents are unchanged.
+
 ### Added
 
 - The starter policy templates now ship in the wheel. `ciphergate init --template NAME` writes
@@ -265,7 +270,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.5.0...v0.6.0
