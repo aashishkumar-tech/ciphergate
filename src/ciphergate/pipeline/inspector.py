@@ -85,7 +85,7 @@ def prepare_run(
     ctx = resolve_context(policy, context)
     path = Path(input_path)
     validate_input_path(path, runtime.max_input_bytes)
-    detected = detect_format(path, fmt)
+    detected = detect_format(path, fmt, runtime.extension_formats)
     options = ReaderOptions(
         runtime=runtime,
         policy_settings=policy.document.settings,

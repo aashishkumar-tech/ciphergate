@@ -256,6 +256,10 @@ ciphergate sanitize logs/ --policy ... --output build/logs.sanitized --apply
   `rescan` fails (exit 7) when it skipped any, and `sanitize` leaves them out of the output.
   `--format` on a directory applies to every file, and the run warns when that contradicts an
   extension (for example a CSV read as text loses its column names).
+- `--extension-format EXT=FORMAT` (repeatable) reads files with that extension as FORMAT, for
+  example `--extension-format .dat=csv --extension-format .log=jsonlog`. It adds unknown extensions
+  and replaces built-in ones, works for single files too, and cannot be combined with `--format`.
+  From Python, pass `RuntimeSettings(extension_formats={".dat": InputFormat.CSV})`.
   At most 1000 files by default (`--max-files N`); more fails the run (exit 4) before anything
   is processed. An empty selection fails with `batch_empty` (exit 4).
 - Each file is processed exactly like a single-file run, in sorted path order; a failing file

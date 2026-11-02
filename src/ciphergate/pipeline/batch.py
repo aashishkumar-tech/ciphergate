@@ -24,7 +24,7 @@ import shutil
 import stat
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -171,7 +171,14 @@ def _is_link(entry: os.DirEntry[str]) -> bool:
     return False
 
 
-def discover(root: Path, *, recursive: bool, fmt: InputFormat | None, max_files: int) -> Discovery:
+def discover(
+    root: Path,
+    *,
+    recursive: bool,
+    fmt: InputFormat | None,
+    max_files: int,
+    extensions: Mapping[str, InputFormat] | None = None,
+) -> Discovery:
     """List the files a batch run will process. Raises on limits; never follows links."""
     try:
         st = os.lstat(root)
@@ -210,7 +217,7 @@ def discover(root: Path, *, recursive: bool, fmt: InputFormat | None, max_files:
                         walk(rel, depth + 1)
                 elif not entry.is_file(follow_symlinks=False):
                     skipped.append((rel, "not_regular_file"))
-                elif fmt is None and rel.suffix.lower() not in EXTENSION_FORMATS:
+                elif fmt is None and not _known_extension(rel, extensions):
                     skipped.append((rel, "unsupported_extension"))
                 else:
                     files.append(rel)
@@ -224,6 +231,11 @@ def discover(root: Path, *, recursive: bool, fmt: InputFormat | None, max_files:
 
     walk(Path(), 0)
     return Discovery(root, sorted(files, key=lambda p: p.as_posix()), skipped)
+
+
+def _known_extension(rel: Path, extensions: Mapping[str, InputFormat] | None) -> bool:
+    suffix = rel.suffix.lower()
+    return suffix in EXTENSION_FORMATS or suffix in (extensions or {})
 
 
 def display_relative(rel: Path, index: int, root: Path, mode: str) -> str:
@@ -291,7 +303,8 @@ def coverage_warnings(
             f"{unknown} file(s) were skipped and not scanned because their extension is not "
             "recognised"
             + ("; they are not in the output" if sanitize else "")
-            + "; rename them, or pass --format to read every file as one format"
+            + "; map them with --extension-format EXT=FORMAT, or pass --format to read every "
+            "file as one format"
         )
     if fmt is not None:
         mismatched = sum(
@@ -332,7 +345,13 @@ def analyze_directory(
 ) -> BatchReport:
     """Batch ``inspect`` / ``plan`` / ``rescan``. Read-only, like the single-file commands."""
     root = Path(root)
-    discovery = discover(root, recursive=recursive, fmt=fmt, max_files=runtime.max_batch_files)
+    discovery = discover(
+        root,
+        recursive=recursive,
+        fmt=fmt,
+        max_files=runtime.max_batch_files,
+        extensions=runtime.extension_formats,
+    )
     _require_files(discovery)
 
     def run(path: Path, rel: Path) -> RunReport:
@@ -471,7 +490,11 @@ def sanitize_directory(
     runtime = options.runtime or RuntimeSettings()
     validate_output_directory(root, output)
     discovery = discover(
-        root, recursive=recursive, fmt=options.format, max_files=runtime.max_batch_files
+        root,
+        recursive=recursive,
+        fmt=options.format,
+        max_files=runtime.max_batch_files,
+        extensions=runtime.extension_formats,
     )
     _require_files(discovery)
     mode = runtime.path_display

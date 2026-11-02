@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import IO
 
@@ -49,11 +50,19 @@ _JSON_PREFIXES = (
 )
 
 
-def detect_format(path: Path, explicit: InputFormat | None = None) -> InputFormat:
-    """Explicit ``--format`` wins; else use the extension, refusing contradicting content."""
+def detect_format(
+    path: Path,
+    explicit: InputFormat | None = None,
+    extensions: Mapping[str, InputFormat] | None = None,
+) -> InputFormat:
+    """Explicit ``--format`` wins; then ``extensions``, then the built-in extension table.
+
+    Content that contradicts a JSON format is refused either way.
+    """
     if explicit is not None:
         return explicit
-    fmt = EXTENSION_FORMATS.get(path.suffix.lower())
+    suffix = path.suffix.lower()
+    fmt = (extensions or {}).get(suffix) or EXTENSION_FORMATS.get(suffix)
     if fmt is None:
         raise UsageError(
             "cannot infer the input format from this file extension; pass --format "
