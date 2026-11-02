@@ -405,6 +405,11 @@ def test_directory_summary_carries_next_steps(tmp_path: Path) -> None:
     (root / "app.log").write_text(SECRET_LINE, encoding="utf-8")
     r = invoke("inspect", root, "--policy", POLICIES / "developer_logs.yml")
     assert r.exit_code == 1 and "next: pass --environment" in r.stdout
+    report = tmp_path / "report.json"
+    invoke("inspect", root, "--policy", POLICIES / "developer_logs.yml", "--report", report)
+    data = _report(report)
+    assert "environment_required_but_missing" in [s["code"] for s in data["next_steps"]]
+    assert data["next_steps"] == data["files"][0]["report"]["next_steps"]
 
 
 # --------------------------------------------------------------------------- --extension-format

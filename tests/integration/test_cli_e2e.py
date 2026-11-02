@@ -206,6 +206,20 @@ def test_blocked_run_says_what_to_do_next(tmp_path: Path) -> None:
     assert "next: pass --environment" in r.stdout and "next: pass --destination" in r.stdout
 
 
+def test_json_report_lists_next_steps(tmp_path: Path) -> None:
+    src = tmp_path / "raw.csv"
+    shutil.copy(EXAMPLES / "sample.csv", src)
+    report = tmp_path / "report.json"
+    r = invoke("inspect", src, "--policy", POLICIES / "developer_logs.yml", "--report", report)
+    assert r.exit_code == 1
+    steps = json.loads(report.read_text(encoding="utf-8"))["next_steps"]
+    codes = [s["code"] for s in steps]
+    assert codes[:2] == ["environment_required_but_missing", "destination_required_but_missing"]
+    assert len(codes) == len(set(codes))
+    for step in steps:
+        assert f"next: {step['message']}" in r.stdout
+
+
 def test_successful_run_has_no_next_steps(tmp_path: Path) -> None:
     clean = tmp_path / "clean.log"
     clean.write_text("service started\n", encoding="utf-8")

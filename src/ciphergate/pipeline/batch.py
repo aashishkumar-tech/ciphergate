@@ -52,6 +52,7 @@ from ciphergate.pipeline.sanitizer import (
 from ciphergate.policy.validator import Policy
 from ciphergate.readers import EXTENSION_FORMATS
 from ciphergate.reporting.audit import new_run_id, utc_now
+from ciphergate.reporting.next_steps import merge_next_steps
 
 logger = logging.getLogger("ciphergate")
 
@@ -136,6 +137,7 @@ class BatchReport:
 
     def to_dict(self) -> dict[str, Any]:
         first = next((r.report for r in self.files if r.report is not None), None)
+        files = [r.to_dict() for r in self.files]
         return {
             "schema": BATCH_REPORT_SCHEMA,
             "command": self.command,
@@ -148,10 +150,11 @@ class BatchReport:
             "policy": first.policy if first is not None else None,
             "context": first.context if first is not None else None,
             "summary": self.summary(),
-            "files": [r.to_dict() for r in self.files],
+            "files": files,
             "skipped": self.skipped,
             "output": self.output,
             "warnings": self.warnings,
+            "next_steps": merge_next_steps([f["report"] for f in files if "report" in f]),
             "disclaimer": DISCLAIMER,
         }
 

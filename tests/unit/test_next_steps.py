@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ciphergate.constants import ReasonCode
-from ciphergate.reporting.next_steps import _HINTS, next_steps
+from ciphergate.reporting.next_steps import _HINTS, merge_next_steps, next_step_items, next_steps
 
 
 def report(**extra: Any) -> dict[str, Any]:
@@ -60,3 +60,35 @@ def test_hints_are_fixed_text() -> None:
     # Hints come from a fixed table, so they can never carry input values.
     unknown = {"by_reason_code": {"explicit_policy_match": 3, "not_a_code": 1}}
     assert next_steps(report(summary=unknown)) == []
+
+
+def test_items_carry_stable_codes() -> None:
+    items = next_step_items(
+        report(
+            gates=[{"reason_code": ReasonCode.ENVIRONMENT_REQUIRED_BUT_MISSING}],
+            keys=[
+                {"key_env": "CIPHERGATE_HMAC_KEY", "status": "missing"},
+                {"key_env": "OTHER_KEY", "status": "too_short"},
+            ],
+        )
+    )
+    assert [i["code"] for i in items] == [
+        "environment_required_but_missing",
+        "key_missing",
+        "key_invalid",
+    ]
+    assert all(set(i) == {"code", "message"} for i in items)
+
+
+def test_merge_keeps_first_occurrence_order() -> None:
+    a = report(gates=[{"reason_code": ReasonCode.DESTINATION_REQUIRED_BUT_MISSING}])
+    b = report(
+        gates=[
+            {"reason_code": ReasonCode.ENVIRONMENT_REQUIRED_BUT_MISSING},
+            {"reason_code": ReasonCode.DESTINATION_REQUIRED_BUT_MISSING},
+        ]
+    )
+    assert [i["code"] for i in merge_next_steps([a, b])] == [
+        "destination_required_but_missing",
+        "environment_required_but_missing",
+    ]

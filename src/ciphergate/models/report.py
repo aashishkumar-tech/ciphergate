@@ -11,6 +11,7 @@ from enum import StrEnum
 from typing import Any
 
 from ciphergate.constants import DISCLAIMER, REPORT_SCHEMA, ExitCode
+from ciphergate.reporting.next_steps import next_step_items
 
 
 class RunStatus(StrEnum):
@@ -89,7 +90,7 @@ class RunReport:
         return self.exit_code == 0
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "schema": REPORT_SCHEMA,
             "command": self.command,
             "status": str(self.status),
@@ -111,5 +112,8 @@ class RunReport:
             "output": self.output,
             "rescan": self.rescan.to_dict() if self.rescan else None,
             "warnings": self.warnings,
-            "disclaimer": DISCLAIMER,
         }
+        # Fixed hint text chosen by reason code: never contains input values.
+        data["next_steps"] = next_step_items(data)
+        data["disclaimer"] = DISCLAIMER
+        return data
