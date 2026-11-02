@@ -20,6 +20,18 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   list, with ages over 89 shown as `90+`. `us_hipaa` is not Safe Harbor or Expert Determination
   by itself.
 - New template `hospital_us_override`, an example hospital layer on top of `us_hipaa`.
+- Packs `eu_gdpr` and `india_dpdp` (templates requiring review, not legal advice). `eu_gdpr`
+  blocks GDPR Art. 9 special-category fields toward external destinations and reviews them
+  elsewhere, and finds member-state identifier fields plus Italian codice fiscale values.
+  `india_dpdp` finds grouped Aadhaar numbers, ABHA numbers and addresses, PAN and Indian
+  identifier fields, and blocks SPDI-style sensitive fields toward external destinations. One
+  policy can extend several jurisdiction packs.
+
+### Changed
+
+- When equally protective findings overlap in one value, the more confident one now names the
+  redaction marker (for example a grouped Aadhaar number is marked `pii.government_id`, not
+  `pii.phone`). What gets removed is unchanged.
 - Reports list the policy's layers (name, kind, source, file digest), and each decision names
   the layer that made it. `policy.digest` now covers every layer. `validate-policy` prints the
   layer chain and adds `layers` to its JSON output. The terminal summary and the review page

@@ -27,6 +27,12 @@
   redacted), cannot check the Safe Harbor "no actual knowledge" condition, does not parse
   photos or biometric data, and cannot know every "other unique identifying number". It is
   not Safe Harbor or Expert Determination by itself.
+- The `eu_gdpr` pack finds most national identifiers by field name only (the Italian codice
+  fiscale also by value). It cannot decide a lawful basis, an Art. 9(2) condition or whether a
+  destination is outside the EEA.
+- The `india_dpdp` pack finds Aadhaar numbers by value only when written in groups and does not
+  verify the Verhoeff checksum; voter ID, passport and licence numbers are found by field name
+  only. It cannot check consent, purpose limitation, retention or cross-border rules.
 
 ## Formats and processing
 

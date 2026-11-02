@@ -1,0 +1,78 @@
+# TEMPLATE REQUIRING REVIEW. Layering pack for EU healthcare-style data, built on
+# healthcare_baseline. It is modelled on GDPR concepts but using it does NOT make processing
+# lawful and is not legal or compliance advice. GDPR has no fixed identifier list like HIPAA
+# Safe Harbor: whether data is personal depends on whether a person is identifiable by any
+# means reasonably likely to be used (Recital 26). Detection is incomplete, especially in free
+# text and in languages other than English.
+#
+# What this pack adds on top of the baseline:
+#  * Art. 9 special categories (health is already covered by the baseline; this adds genetic,
+#    biometric, racial or ethnic origin, political opinions, religious or philosophical
+#    beliefs, trade union membership, sex life and sexual orientation fields): blocked toward
+#    external/unknown destinations, human review everywhere else;
+#  * national and health-insurance identifier fields from several member states, plus a value
+#    pattern for the Italian codice fiscale; other national numbers are found by field name only;
+#  * ages banded by 10 (90 and over as "90+"), like the other jurisdiction packs.
+#
+# Things this pack cannot decide for you:
+#  * a lawful basis and an Art. 9(2) condition for the processing;
+#  * Chapter V international transfers: an `external_ai` or `external_vendor` destination may
+#    be outside the EEA, and CipherGate does not know where a destination is;
+#  * whether a keyed pseudonym is acceptable: pseudonymised data is still personal data
+#    (Art. 4(5), Recital 26), so this pack redacts rather than pseudonymizes by default.
+policy_version: 1
+name: eu-gdpr
+extends: [healthcare_baseline]
+metadata:
+  description: "EU healthcare pack modelled on GDPR special categories and member-state identifiers. Template requiring review; not legal advice."
+  pack_version: 1
+custom_categories:
+  - pii.age
+  - pii.special_category
+  - pii.biometric_identifier
+detectors:
+  custom:
+    # Italian codice fiscale: 6 letters, 2 digits, month letter, 2 digits, letter, 3 digits, letter.
+    - id: eu-it-codice-fiscale
+      category: pii.government_id
+      pattern: '\b[A-Z]{6}[0-9]{2}[ABCDEHLMPRST][0-9]{2}[A-Z][0-9]{3}[A-Z]\b'
+      confidence: 0.85
+classifications:
+  - id: eu-special-categories
+    field_names: [ethnicity, ethnic_origin, race, racial_origin, religion, religious_belief, philosophical_belief, political_opinion, political_party, party_affiliation, trade_union, union_membership, sexual_orientation, sex_life, gender_identity, genetic_data, genotype, dna_sequence, genetic_test_result]
+    category: pii.special_category
+  - id: eu-biometrics
+    field_names: [fingerprint, face_template, facial_image, iris_scan, retina_scan, voiceprint, biometric_template]
+    category: pii.biometric_identifier
+  - id: eu-national-ids
+    field_names: [codice_fiscale, steuer_id, steueridentifikationsnummer, bsn, burgerservicenummer, nir, numero_securite_sociale, dni, nie, nif, pesel, personnummer, henkilotunnus, cpr_number, rodne_cislo, ppsn, ehic_number, health_insurance_number, krankenversicherungsnummer, carte_vitale_number]
+    category: pii.government_id
+  - id: eu-age
+    field_names: [age, patient_age, age_years, alter, edad, eta]
+    category: pii.age
+rules:
+  - id: eu-block-special-categories-external
+    priority: 800
+    match:
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+      categories: [pii.special_category, pii.biometric_identifier]
+    action: block
+    reason: special_category_data_needs_review_before_external_release
+
+  - id: eu-review-special-categories
+    priority: 400
+    match:
+      categories: [pii.special_category, pii.biometric_identifier]
+    action: review
+    reason: special_category_data_requires_human_decision
+
+  - id: eu-age-band
+    priority: 300
+    match:
+      categories: [pii.age]
+    action: generalize
+    params:
+      strategy: age_band
+      band_size: 10
+      max_age: 90
+    reason: ages_banded
