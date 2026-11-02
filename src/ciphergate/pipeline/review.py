@@ -16,6 +16,7 @@ import difflib
 import io
 import json
 import re
+import time
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
@@ -86,6 +87,8 @@ class ReviewData:
     has_output: bool
     include_input: bool
     page_path: str | None
+    # Measured seconds per step: plan (read, detect, decide), transform, rescan, collect.
+    timings: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -122,7 +125,10 @@ def review_file(
 
 def build_review(setup: RunSetup, page: Path, options: ReviewOptions) -> ReviewData:
     keys = options.keys or KeyProvider()
+    timings: dict[str, float] = {}
+    started = time.perf_counter()
     analysis = analyze_file(setup, keys)
+    timings["plan"] = time.perf_counter() - started
     collector = _Collector(
         setup,
         options.include_input,
@@ -131,19 +137,22 @@ def build_review(setup: RunSetup, page: Path, options: ReviewOptions) -> ReviewD
     )
     withheld = {"written": False, "path": None, "withheld_reason": "review_only"}
     if analysis.status != RunStatus.READY:
+        started = time.perf_counter()
         reader = setup.new_reader()
         analyzer = Analyzer(setup, reader)
         analyzer.analyze_header()
         for record in reader.records():
             if not record.malformed and record.index >= 0:
                 collector.add(record, analyzer.analyze(record), None, has_output=False)
+        timings["collect"] = time.perf_counter() - started
         report = build_report("review", analysis, output=withheld)
-        return collector.result(report, has_output=False, page=page, setup=setup)
+        return collector.result(report, has_output=False, page=page, setup=setup, timings=timings)
 
     encoding = setup.reader_options.encoding.replace("-sig", "")
     # Never published: only the parent directory of this name is used, for the temp file.
     scratch = page.with_name(page.name + ".sanitized-preview")
     with AtomicOutput(scratch, force=False, encoding=encoding) as out:
+        started = time.perf_counter()
         changes = _write_transformed(
             setup,
             analysis,
@@ -154,11 +163,14 @@ def build_review(setup: RunSetup, page: Path, options: ReviewOptions) -> ReviewD
             ),
         )
         out.finish_writing()
+        timings["transform"] = time.perf_counter() - started
         rescan = None
         if setup.policy.document.settings.rescan.enabled:
             if out.temp_path is None:
                 raise InternalError("temporary output missing", code="output_temp_missing")
+            started = time.perf_counter()
             rescan = rescan_path(setup, out.temp_path, strict=True)
+            timings["rescan"] = time.perf_counter() - started
         out.abort()
     if file_digest(setup.input_path) != analysis.digest:
         raise InputFormatError("input changed during processing", code="input_changed")
@@ -173,7 +185,7 @@ def build_review(setup: RunSetup, page: Path, options: ReviewOptions) -> ReviewD
         rescan=rescan,
         extra_warnings=warnings,
     )
-    return collector.result(report, has_output=True, page=page, setup=setup)
+    return collector.result(report, has_output=True, page=page, setup=setup, timings=timings)
 
 
 class _Collector:
@@ -298,7 +310,13 @@ class _Collector:
         return str(finding.location.field_path)
 
     def result(
-        self, report: RunReport, *, has_output: bool, page: Path, setup: RunSetup
+        self,
+        report: RunReport,
+        *,
+        has_output: bool,
+        page: Path,
+        setup: RunSetup,
+        timings: dict[str, float],
     ) -> ReviewData:
         return ReviewData(
             report=report,
@@ -310,6 +328,7 @@ class _Collector:
             has_output=has_output,
             include_input=self.include_input,
             page_path=display_path(page, setup.runtime.path_display),
+            timings={k: round(v, 3) for k, v in timings.items()},
         )
 
     def _render(self, data: Any, *, drop_columns: bool, index: int) -> tuple[str, Fields]:

@@ -458,17 +458,22 @@ no sanitized file. It writes one HTML page instead:
 ciphergate review app.log --policy policies/developer_logs.yml   --environment dev --destination local_dev -o build/review.html
 ```
 
-Open the file in a browser. It shows:
+Open the file in a browser. It is laid out like a trace: a tree on the left, details of the
+selected item on the right.
 
-- **How the run went:** findings, how many are transformed, kept by an `allow` rule, need
-  review or are blocked (with percentages), records with findings, values changed, records
-  dropped, rescan results, and possible partial finds.
-- **Breakdown:** what happened to each category, plus counts by action, rule, reason code,
-  detector and confidence band.
-- **Records:** each record with findings, as the output would contain it. Changed parts are
-  highlighted, and hovering over one shows its category, action, rule and reason code. Values
-  kept by an `allow` rule are underlined. A dashed outline marks a *possible partial find*: a
-  replaced name or address next to a capitalised word that stayed. This is a hint, not a check.
+- **review run:** a verdict, then metrics. These include findings and how many are
+  transformed, kept by an `allow` rule, need review or are blocked (with percentages), records
+  with findings, values changed, records dropped, rescan results and possible partial finds.
+- **Steps**, with measured timings: the plan pass (read input, detect, decide), transform,
+  rescan and output.
+  - *detect* shows counts by category, detector and confidence.
+  - *decide* shows the policy and context, what happened to each category, counts by action,
+    rule and reason code, plus gates and key status.
+- **Records with findings:** each one opens as Input and Output panels with a decisions table.
+  Changed parts are highlighted, and hovering over one shows its category, action, rule and
+  reason code. Values kept by an `allow` rule are underlined. A dashed outline marks a
+  *possible partial find*: a replaced name or address next to a capitalised word that stayed.
+  This is a hint, not a check.
 
 What the page contains, and how to handle it:
 
