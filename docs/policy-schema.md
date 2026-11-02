@@ -150,6 +150,19 @@ actions/params are **rejected** (`policy_conflict`, naming both rule IDs).
 Several findings on one value combine: `drop_record` > `drop_field` > whole-value transform
 (most protective by rank) > span transforms (overlaps merged, most protective wins).
 
+## Hard rules and guardrails
+
+`hard: true` puts a rule at level 2, above guardrails, field rules and everything else except the
+engine's own constraints. Use it for "never, whatever other rules say", such as blocking
+credentials for untrusted destinations. A hard rule cannot `allow`.
+
+`guardrail: true` puts a rule at level 3. It must name `environments` and either
+`target_environments` or `destinations`, so it only fires for a specific environment-to-recipient
+move (for example PRD to `external_ai`). A guardrail cannot `allow`, and a rule cannot be both.
+
+A blocked run prints `next:` lines in the terminal summary with what to change, based on the
+reason codes. They never include input values.
+
 ## Transfers
 
 ```yaml

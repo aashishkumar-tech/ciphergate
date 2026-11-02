@@ -7,6 +7,7 @@ from typing import Any
 from ciphergate.constants import DISCLAIMER, RESCAN_LIMIT
 from ciphergate.models.report import RunReport
 from ciphergate.pipeline.batch import BatchReport
+from ciphergate.reporting.next_steps import next_steps
 from ciphergate.reporting.safe_text import escape_control
 
 SUMMARY_ITEMS = 15
@@ -119,6 +120,8 @@ def render_summary(report: RunReport, *, verbose: bool = False) -> str:
             lines.append(f"  output:  not written ({out['withheld_reason']})")
     for warning in d["warnings"]:
         lines.append(f"  warning: {escape_control(warning)}")
+    for hint in next_steps(d):
+        lines.append(f"  next: {hint}")
     lines.append(f"  note: {DISCLAIMER}")
     return "\n".join(lines) + "\n"
 

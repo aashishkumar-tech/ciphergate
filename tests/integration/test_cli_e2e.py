@@ -197,6 +197,35 @@ def test_sanitize_missing_key_exit_6(tmp_path: Path, no_key_env: None) -> None:
     assert r.exit_code == 6 and not out.exists() and "missing" in r.stdout
 
 
+def test_blocked_run_says_what_to_do_next(tmp_path: Path) -> None:
+    src = tmp_path / "raw.csv"
+    shutil.copy(EXAMPLES / "sample.csv", src)
+    out = tmp_path / "out.csv"
+    r = invoke("sanitize", src, "--policy", POLICIES / "developer_logs.yml", "-o", out, "--apply")
+    assert r.exit_code == 1 and not out.exists()
+    assert "next: pass --environment" in r.stdout and "next: pass --destination" in r.stdout
+
+
+def test_successful_run_has_no_next_steps(tmp_path: Path) -> None:
+    clean = tmp_path / "clean.log"
+    clean.write_text("service started\n", encoding="utf-8")
+    out = tmp_path / "out.log"
+    r = invoke(
+        "sanitize",
+        clean,
+        "--policy",
+        POLICIES / "developer_logs.yml",
+        "--environment",
+        "dev",
+        "--destination",
+        "local_dev",
+        "-o",
+        out,
+        "--apply",
+    )
+    assert r.exit_code == 0 and "next:" not in r.stdout
+
+
 def test_rescan_summary_never_says_a_bare_pass(tmp_path: Path) -> None:
     policy = POLICIES / "prd_external_ai.yml"
     clean = tmp_path / "clean.log"
