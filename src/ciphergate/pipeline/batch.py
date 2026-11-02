@@ -96,6 +96,9 @@ class BatchReport:
     skipped: list[dict[str, str]]
     output: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    # Exit code when every processed file passed but the run still cannot count as
+    # complete, e.g. a strict rescan that skipped files it could not read.
+    incomplete_exit: int = 0
     run_id: str = field(default_factory=new_run_id)
     timestamp: str = field(default_factory=utc_now)
 
@@ -104,7 +107,7 @@ class BatchReport:
         for result in self.files:
             if result.exit_code != 0:
                 return result.exit_code
-        return 0
+        return self.incomplete_exit
 
     @property
     def status(self) -> str:
@@ -277,6 +280,34 @@ def _run_each(
     return results
 
 
+def coverage_warnings(
+    discovery: Discovery, fmt: InputFormat | None, *, sanitize: bool = False
+) -> list[str]:
+    """Say which files were not scanned, or were read as a format their extension contradicts."""
+    warnings: list[str] = []
+    unknown = sum(1 for _, reason in discovery.skipped if reason == "unsupported_extension")
+    if unknown:
+        warnings.append(
+            f"{unknown} file(s) were skipped and not scanned because their extension is not "
+            "recognised"
+            + ("; they are not in the output" if sanitize else "")
+            + "; rename them, or pass --format to read every file as one format"
+        )
+    if fmt is not None:
+        mismatched = sum(
+            1
+            for rel in discovery.files
+            if EXTENSION_FORMATS.get(rel.suffix.lower()) not in (None, fmt)
+        )
+        if mismatched:
+            warnings.append(
+                f"--format {fmt} was applied to {mismatched} file(s) whose extension means "
+                "another format; structure such as CSV columns or JSON keys may be lost. "
+                "Run those files separately without --format"
+            )
+    return warnings
+
+
 def _require_files(discovery: Discovery) -> None:
     if not discovery.files:
         raise InputFormatError(
@@ -312,6 +343,8 @@ def analyze_directory(
         return rescan_file(path, policy, context, strict=strict, runtime=runtime, fmt=fmt)
 
     mode = runtime.path_display
+    effective_strict = policy.document.settings.strict if strict is None else strict
+    unscanned = any(reason == "unsupported_extension" for _, reason in discovery.skipped)
     return BatchReport(
         command=command,
         input_display=display_relative(Path(root.name), 0, root.parent, mode)
@@ -320,6 +353,11 @@ def analyze_directory(
         recursive=recursive,
         files=_run_each(discovery, mode, run),
         skipped=_skipped(discovery, mode),
+        warnings=coverage_warnings(discovery, fmt),
+        # A strict rescan is a gate: files it could not read must not count as passed.
+        incomplete_exit=int(ExitCode.RESCAN_FAILED)
+        if command == "rescan" and effective_strict and unscanned
+        else 0,
     )
 
 
@@ -472,6 +510,7 @@ def sanitize_directory(
             results,
             _skipped(discovery, mode),
             output={"written": False, "path": shown_out, "withheld_reason": "apply_not_set"},
+            warnings=coverage_warnings(discovery, options.format, sanitize=True),
         )
 
     parent = output.parent if str(output.parent) else Path(".")
@@ -491,7 +530,14 @@ def sanitize_directory(
             mode,
             lambda path, rel: sanitize_file(path, staging / rel, policy, context, file_options),
         )
-        report = BatchReport("sanitize", shown_root, recursive, results, _skipped(discovery, mode))
+        report = BatchReport(
+            "sanitize",
+            shown_root,
+            recursive,
+            results,
+            _skipped(discovery, mode),
+            warnings=coverage_warnings(discovery, options.format, sanitize=True),
+        )
         for result in results:
             if result.report is not None:
                 result.report.output["path"] = f"{shown_out}/{result.display}"

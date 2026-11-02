@@ -33,6 +33,8 @@ EXTENSION_FORMATS: dict[str, InputFormat] = {
     ".ndjson": InputFormat.JSONL,
     ".txt": InputFormat.TEXT,
     ".log": InputFormat.TEXT,
+    ".out": InputFormat.TEXT,
+    ".err": InputFormat.TEXT,
 }
 
 _JSON_PREFIXES = (

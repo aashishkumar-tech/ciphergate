@@ -161,6 +161,13 @@ def render_batch_summary(report: BatchReport, *, verbose: bool = False) -> str:
             lines.append(f"  output:  not written ({out.get('withheld_reason')})")
     for warning in d["warnings"]:
         lines.append(f"  warning: {escape_control(warning)}")
+    hints: list[str] = []
+    for entry in d["files"]:
+        for hint in next_steps(entry.get("report") or {}):
+            if hint not in hints:
+                hints.append(hint)
+    for hint in hints:
+        lines.append(f"  next: {hint}")
     lines.append("  note: per-file details are in the JSON report (--report).")
     lines.append(f"  note: {DISCLAIMER}")
     return "\n".join(lines) + "\n"
