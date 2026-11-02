@@ -28,8 +28,12 @@ Needs `pip install 'ciphergate-cli[ner]'` and a spaCy model installed by the use
 `python -m spacy download en_core_web_lg`). CipherGate checks that the model package is importable
 before importing Presidio and fails with `ner_model_missing` instead of letting Presidio download
 it. Strings with no letters or under two characters are not sent to the model. Tests
-(`tests/unit/test_presidio_ner.py`) use a fake engine. Presidio itself is **not** exercised in
-CI, so accuracy on real text has not been measured by this project.
+in `tests/unit/test_presidio_ner.py` use a fake engine. `tests/integration/test_presidio_real.py`
+runs the real Presidio with `en_core_web_sm`: it finds a common synthetic name and place, ignores
+text with no entities, removes them in a `sanitize` run with network access disabled, and fails
+closed when the model is missing. CI runs it in the `ner` job (not a required check). These are
+smoke tests on a few sentences: accuracy on real text has not been measured by this project,
+and the small model misses names that the larger `en_core_web_lg` may find.
 
 ## Text/log specifics
 
