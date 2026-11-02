@@ -12,6 +12,15 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   what to change in the policy, or what to remove from the input. The hints come from reason
   codes and never include input values. The JSON report is unchanged.
 - `docs/policy-schema.md` explains `hard` and `guardrail` rules.
+- `.out` and `.err` files are read as plain text, in directories and as single files.
+
+### Fixed
+
+- Directory runs warn when files were skipped because their extension is not recognised, so a
+  `COMPLETED` run no longer hides files that were never scanned. A strict directory `rescan` now
+  fails (exit 7) when it skipped such files, and `sanitize` says they are not in the output.
+- Directory runs warn when `--format` is applied to files whose extension means another format.
+- Directory summaries show the same `next:` hints as single-file runs.
 
 ## [0.11.0] - 2026-10-31
 

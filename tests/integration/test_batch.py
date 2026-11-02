@@ -354,3 +354,54 @@ def test_entry_replaced_after_discovery_is_not_processed(
     )
     assert calls == []
     assert results[0].error_code == "input_changed_type" and results[0].exit_code != 0
+
+
+# --------------------------------------------------------------------------- coverage
+
+
+def test_out_and_err_files_are_read_as_text(tmp_path: Path) -> None:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "app.out").write_text("started\n", encoding="utf-8")
+    (root / "app.err").write_text("failed\n", encoding="utf-8")
+    d = discover(root, recursive=False, fmt=None, max_files=10)
+    assert [p.as_posix() for p in d.files] == ["app.err", "app.out"] and not d.skipped
+
+
+def test_skipped_files_are_a_warning_and_fail_a_strict_rescan(tmp_path: Path, env) -> None:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "clean.log").write_text("service started\n", encoding="utf-8")
+    (root / "notes.md").write_text("not scanned\n", encoding="utf-8")
+    r = invoke("inspect", root, *PRD_EXTERNAL, env=env)
+    assert r.exit_code == 0 and "1 file(s) were skipped and not scanned" in r.stdout
+    strict = invoke("rescan", root, *PRD_EXTERNAL, env=env)
+    assert strict.exit_code == 7 and "not scanned" in strict.stdout
+    assert invoke("rescan", root, *PRD_EXTERNAL, "--no-strict", env=env).exit_code == 0
+
+
+def test_sanitize_warns_that_skipped_files_are_not_in_the_output(tmp_path: Path, env) -> None:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "clean.log").write_text("service started\n", encoding="utf-8")
+    (root / "notes.md").write_text("not scanned\n", encoding="utf-8")
+    out = tmp_path / "out"
+    r = invoke("sanitize", root, *PRD_EXTERNAL, "-o", out, "--apply", env=env)
+    assert r.exit_code == 0 and "they are not in the output" in r.stdout
+    assert sorted(p.name for p in out.iterdir()) == ["clean.log"]
+
+
+def test_forced_format_that_contradicts_an_extension_warns(tmp_path: Path, env) -> None:
+    root = _tree(tmp_path)
+    report = tmp_path / "report.json"
+    r = invoke("inspect", root, "--format", "text", *PRD_EXTERNAL, "--report", report, env=env)
+    assert "--format text was applied to 1 file(s)" in r.stdout
+    assert any("--format text" in w for w in _report(report)["warnings"])
+
+
+def test_directory_summary_carries_next_steps(tmp_path: Path) -> None:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "app.log").write_text(SECRET_LINE, encoding="utf-8")
+    r = invoke("inspect", root, "--policy", POLICIES / "developer_logs.yml")
+    assert r.exit_code == 1 and "next: pass --environment" in r.stdout

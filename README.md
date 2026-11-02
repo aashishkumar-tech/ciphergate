@@ -248,10 +248,14 @@ ciphergate inspect logs/ --policy policies/developer_logs.yml --environment dev 
 ciphergate sanitize logs/ --policy ... --output build/logs.sanitized --apply
 ```
 
-- Files are chosen by extension (`.csv`, `.json`, `.jsonl`, `.ndjson`, `.txt`, `.log`), or all
-  regular files when `--format` is given. Subdirectories are processed only with
+- Files are chosen by extension (`.csv`, `.json`, `.jsonl`, `.ndjson`, `.txt`, `.log`, `.out`,
+  `.err`), or all regular files when `--format` is given. Subdirectories are processed only with
   `--recursive`/`-r` (at most 32 levels). Symlinks, junctions, devices, FIFOs and other
   extensions are **skipped and listed** in the report with a reason; links are never followed.
+  Skipped extensions also produce a warning, because those files were never scanned; a strict
+  `rescan` fails (exit 7) when it skipped any, and `sanitize` leaves them out of the output.
+  `--format` on a directory applies to every file, and the run warns when that contradicts an
+  extension (for example a CSV read as text loses its column names).
   At most 1000 files by default (`--max-files N`); more fails the run (exit 4) before anything
   is processed. An empty selection fails with `batch_empty` (exit 4).
 - Each file is processed exactly like a single-file run, in sorted path order; a failing file
