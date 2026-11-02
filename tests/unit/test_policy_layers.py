@@ -74,13 +74,14 @@ def test_pack_names_are_the_shipped_files() -> None:
     assert {"healthcare_baseline", "us_hipaa"} <= set(layers.pack_names())
 
 
-@pytest.mark.parametrize("name", ["healthcare_baseline", "us_hipaa"])
+@pytest.mark.parametrize("name", ["healthcare_baseline", "us_hipaa", "eu_gdpr", "india_dpdp"])
 def test_packs_say_template_and_make_no_compliance_claim(name: str) -> None:
     text = (POLICIES / "packs" / f"{name}.yml").read_text(encoding="utf-8")
     assert "TEMPLATE REQUIRING REVIEW" in text
-    lowered = text.lower()
-    for claim in ("hipaa-compliant", "hipaa compliant", "guaranteed", "anonymized"):
+    lowered = " ".join(text.lower().replace("#", " ").split())  # ignore comment line wraps
+    for claim in ("compliant", "compliance with", "guaranteed", "anonymized", "anonymised"):
         assert claim not in lowered
+    assert "not legal or compliance advice" in lowered or name == "healthcare_baseline"
     if name == "us_hipaa":
         assert "does NOT perform Safe Harbor or" in text and "Expert Determination" in text
 
@@ -348,3 +349,90 @@ def test_terminal_and_review_page_show_the_layer(tmp_path: Path) -> None:
     page = tmp_path / "review.html"
     review_file(source, page, load_policy(policy_path), None, ReviewOptions())
     assert "us-age-band (us_hipaa)" in page.read_text(encoding="utf-8")
+
+
+# --------------------------------------------------------------------------- EU and India packs
+
+EU_CSV = "codice_fiscale,religion,age,note\nRSSMRA85T10A562S,TEST_ONLY_BELIEF,47,ok\n"
+
+
+@pytest.mark.parametrize(
+    ("dest", "status", "action"),
+    [("external_ai", "blocked", "block"), ("approved_internal", "review_required", "review")],
+)
+def test_eu_pack_special_categories_depend_on_destination(
+    tmp_path: Path, dest: str, status: str, action: str
+) -> None:
+    source = tmp_path / "eu.csv"
+    source.write_text(EU_CSV, encoding="utf-8")
+    policy = load_policy(POLICIES / "packs" / "eu_gdpr.yml")
+    report = plan_file(source, policy, ctx("prd", "prd", dest))
+    assert str(report.status) == status
+    religion = [i for i in report.items if i["location"].get("field_path") == "religion"]
+    assert religion and {i["decision"]["action"] for i in religion} == {action}
+    assert {i["decision"]["layer"] for i in religion} == {"eu-gdpr"}
+    cf = [i for i in report.items if i["detector"] == "custom:eu-it-codice-fiscale"]
+    assert cf and cf[0]["category"] == "pii.government_id"
+
+
+def test_eu_pack_redacts_identifiers_and_bands_age(tmp_path: Path) -> None:
+    source = tmp_path / "eu.csv"
+    source.write_text("codice_fiscale,age\nRSSMRA85T10A562S,93\n", encoding="utf-8")
+    out = tmp_path / "out.csv"
+    policy = load_policy(POLICIES / "packs" / "eu_gdpr.yml")
+    report = sanitize_file(source, out, policy, ctx("prd", "external", "external_ai"))
+    assert str(report.status) == "sanitized"
+    assert out.read_text(encoding="utf-8").splitlines()[1] == "[REDACTED:pii.government_id],90+"
+
+
+def test_india_pack_finds_grouped_aadhaar_abha_and_pan(tmp_path: Path) -> None:
+    source = tmp_path / "app.log"
+    source.write_text(
+        "lookup aadhaar=2345 6789 0123 pan=ABCPE1234F abha=91-1234-5678-9012 addr=test.only@sbx\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "out.log"
+    policy = load_policy(POLICIES / "packs" / "india_dpdp.yml")
+    report = sanitize_file(source, out, policy, ctx("prd", "external", "external_ai"))
+    assert str(report.status) == "sanitized"
+    text = out.read_text(encoding="utf-8")
+    assert text == (
+        "lookup aadhaar=[REDACTED:pii.government_id] pan=[REDACTED:pii.government_id] "
+        "abha=[REDACTED:health.phi] addr=[REDACTED:health.phi]\n"
+    )
+    # The grouped Aadhaar and ABHA numbers also look like phone numbers; the more confident
+    # finding names the redaction marker.
+    detectors = {i["detector"] for i in report.items}
+    assert {"custom:in-aadhaar-grouped", "custom:in-pan", "custom:in-abha-number"} <= detectors
+    assert "custom:in-abha-address" in detectors
+
+
+@pytest.mark.parametrize("value", ["234567890123", "ABCQE1234F", "abc@abdmx"])
+def test_india_pack_value_patterns_are_narrow(tmp_path: Path, value: str) -> None:
+    # Unseparated 12 digits, a PAN with an invalid holder-type letter, a non-ABDM domain.
+    source = tmp_path / "app.log"
+    source.write_text(f"ref {value}\n", encoding="utf-8")
+    policy = load_policy(POLICIES / "packs" / "india_dpdp.yml")
+    report = plan_file(source, policy, ctx("dev", "dev", "local_dev"))
+    assert not any(i["detector"].startswith("custom:in-") for i in report.items)
+
+
+def test_india_pack_blocks_sensitive_fields_externally(tmp_path: Path) -> None:
+    source = tmp_path / "in.csv"
+    source.write_text("pincode,caste\n110001,TEST_ONLY_VALUE\n", encoding="utf-8")
+    policy = load_policy(POLICIES / "packs" / "india_dpdp.yml")
+    report = plan_file(source, policy, ctx("prd", "external", "external_ai"))
+    assert str(report.status) == "blocked"
+    caste = [i for i in report.items if i["location"].get("field_path") == "caste"]
+    assert caste and caste[0]["decision"]["rule_id"] == "in-block-sensitive-external"
+
+
+def test_one_policy_can_extend_several_jurisdictions() -> None:
+    policy = load(HEAD + "extends: [us_hipaa, eu_gdpr, india_dpdp]\n")
+    assert [x.name for x in policy.layers] == [
+        "healthcare_baseline",
+        "us_hipaa",
+        "eu_gdpr",
+        "india_dpdp",
+        "child",
+    ]

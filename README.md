@@ -216,8 +216,10 @@ weaken an earlier one: a weaker setting, a disabled detector or a rule that woul
 block, review or redaction with something weaker fails validation unless the rule names what it
 relaxes (`relaxes: [rule-id]`), which is then reported as a warning. Hard and guardrail rules
 can never be relaxed. Reports list every layer with its digest and show which layer decided
-each value. `us_hipaa` is modelled on the HIPAA Safe Harbor identifier list but is **not** Safe
-Harbor or Expert Determination by itself. See
+each value. Jurisdiction packs: `us_hipaa` (modelled on the HIPAA Safe Harbor identifier list
+but **not** Safe Harbor or Expert Determination by itself), `eu_gdpr` (GDPR special categories
+and member-state identifiers) and `india_dpdp` (Aadhaar, ABHA, PAN and sensitive fields). None
+of them is legal advice or makes processing lawful. A policy can extend several. See
 [docs/policy-schema.md](docs/policy-schema.md#layering-extends).
 
 ## Commands and exit codes

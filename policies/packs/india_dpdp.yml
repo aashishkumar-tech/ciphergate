@@ -1,0 +1,97 @@
+# TEMPLATE REQUIRING REVIEW. Layering pack for Indian healthcare-style data, built on
+# healthcare_baseline. Its field list draws on the Digital Personal Data Protection Act, 2023,
+# the sensitive personal data list in the IT (SPDI) Rules, 2011 and identifiers used by the
+# Ayushman Bharat Digital Mission (ABDM). Using it does NOT establish that processing meets the
+# DPDP Act, its rules, the Aadhaar Act or ABDM policies, and it is not legal or compliance
+# advice. Detection is incomplete, especially in free text and in Indian languages.
+#
+# What this pack adds on top of the baseline:
+#  * Aadhaar numbers: by field name, and by value when written in groups ("1234 5678 9012" or
+#    with hyphens). An unseparated 12-digit Aadhaar is found by field name only (too many log
+#    values are 12-digit numbers), and the Verhoeff checksum is not checked. Aadhaar is fully
+#    redacted, not masked to the last 4 digits;
+#  * ABHA (health account) numbers ("12-3456-7890-1234") and ABHA addresses ("name@abdm",
+#    "name@sbx") by value and field name;
+#  * PAN by value (the 4th letter must be a valid holder type) and field name;
+#  * voter ID (EPIC), passport, driving licence, ration card, UHID/IP/OP numbers by field name;
+#  * PIN codes treated as address; SPDI-style sensitive fields (sexual orientation, biometric
+#    data) blocked toward external/unknown destinations and reviewed elsewhere;
+#  * ages banded by 10 (90 and over as "90+"), like the other jurisdiction packs.
+#
+# Things this pack cannot decide for you: notice and consent (or another legitimate use),
+# purpose limitation, retention, rules on processing children's data, and cross-border
+# transfer restrictions for the destination you name.
+policy_version: 1
+name: india-dpdp
+extends: [healthcare_baseline]
+metadata:
+  description: "India healthcare pack (Aadhaar, ABHA, PAN and SPDI-style sensitive fields). Template requiring review; not legal advice."
+  pack_version: 1
+custom_categories:
+  - pii.age
+  - pii.special_category
+  - pii.biometric_identifier
+detectors:
+  custom:
+    - id: in-aadhaar-grouped
+      category: pii.government_id
+      pattern: '\b[2-9][0-9]{3}[ -][0-9]{4}[ -][0-9]{4}\b'
+      confidence: 0.75
+    - id: in-abha-number
+      category: health.phi
+      pattern: '\b[0-9]{2}-[0-9]{4}-[0-9]{4}-[0-9]{4}\b'
+      confidence: 0.85
+    - id: in-abha-address
+      category: health.phi
+      pattern: '\b[a-z0-9][a-z0-9._]{2,31}@(abdm|sbx)\b'
+      confidence: 0.85
+      ignore_case: true
+    - id: in-pan
+      category: pii.government_id
+      pattern: '\b[A-Z]{3}[ABCFGHJLPT][A-Z][0-9]{4}[A-Z]\b'
+      confidence: 0.8
+classifications:
+  - id: in-government-ids
+    field_names: [aadhaar, aadhaar_number, aadhaar_no, uid, uidai_number, pan, pan_number, pan_no, epic_number, voter_id, passport_no, driving_licence, driving_licence_number, dl_number, ration_card_number]
+    category: pii.government_id
+  - id: in-health-ids
+    field_names: [abha, abha_number, abha_id, abha_address, health_id, uhid, ip_number, op_number, opd_number, ipd_number, ayushman_card_number, pmjay_id]
+    category: health.phi
+  - id: in-pin-code
+    field_names: [pincode, pin_code, postal_pin]
+    category: pii.address
+  - id: in-sensitive
+    field_names: [sexual_orientation, caste, religion, gender_identity]
+    category: pii.special_category
+  - id: in-biometrics
+    field_names: [fingerprint, iris_scan, face_template, biometric_template]
+    category: pii.biometric_identifier
+  - id: in-age
+    field_names: [age, patient_age, age_years, umar]
+    category: pii.age
+rules:
+  - id: in-block-sensitive-external
+    priority: 800
+    match:
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+      categories: [pii.special_category, pii.biometric_identifier]
+    action: block
+    reason: sensitive_personal_data_needs_review_before_external_release
+
+  - id: in-review-sensitive
+    priority: 400
+    match:
+      categories: [pii.special_category, pii.biometric_identifier]
+    action: review
+    reason: sensitive_personal_data_requires_human_decision
+
+  - id: in-age-band
+    priority: 300
+    match:
+      categories: [pii.age]
+    action: generalize
+    params:
+      strategy: age_band
+      band_size: 10
+      max_age: 90
+    reason: ages_banded

@@ -201,9 +201,13 @@ Shipped packs (`policies/packs/`, all **templates requiring review**):
 |---|---|---|
 | `healthcare_baseline` | — | Strict default for healthcare-style data anywhere: credentials hard-blocked; clinical values blocked toward external/unknown destinations and sent to review elsewhere; identifiers redacted; DOB and clinical dates cut to the year; internal infrastructure redacted; everything else review. Needs no key. |
 | `us_hipaa` | `healthcare_baseline` | Field classifications modelled on the 18 HIPAA Safe Harbor identifier types (geography, dates, ages, record/plan/account numbers, licenses, vehicles, devices, URLs, biometrics, photos); ages banded with 90 and over as `90+`. It is **not** Safe Harbor or Expert Determination by itself: the 3-digit ZIP allowance and the "no actual knowledge" condition are not implemented, binary photos/biometrics are not parsed, and free-text detection is incomplete. |
+| `eu_gdpr` | `healthcare_baseline` | GDPR Art. 9 special-category fields (genetic, biometric, ethnic origin, religion, political opinion, trade union, sex life/orientation) blocked toward external/unknown destinations and reviewed elsewhere; national and health-insurance id fields from several member states plus an Italian codice fiscale value pattern; ages banded. It cannot decide a lawful basis or Chapter V transfers, and pseudonymised data is still personal data, so it redacts by default. |
+| `india_dpdp` | `healthcare_baseline` | Aadhaar (field name, and value when grouped as `1234 5678 9012`; no Verhoeff check; unseparated 12 digits by field name only), ABHA numbers and `@abdm`/`@sbx` addresses, PAN (value and field), EPIC/passport/licence/ration card/UHID fields, PIN codes as address; SPDI-style sensitive fields blocked toward external/unknown destinations and reviewed elsewhere; ages banded. It cannot decide consent, purpose, retention or cross-border rules. |
 
 `policies/hospital_us_override.yml` is an example third layer (`ciphergate init --template
-hospital_us_override`).
+hospital_us_override`). A policy may extend several jurisdiction packs at once (for example
+`extends: [us_hipaa, eu_gdpr, india_dpdp]` for a hospital group); the strictest combination
+applies.
 
 **Resolution.** Names are compared to the shipped packs and never used as paths; local files
 cannot be extended in this release. Packs may extend packs (at most 4 levels, 8 layers; cycles

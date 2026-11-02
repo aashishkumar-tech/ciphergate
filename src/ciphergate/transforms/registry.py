@@ -6,8 +6,8 @@ Combination rules for several decisions on the same value:
 2. whole-value decisions (field-name/classification findings) — the most protective transform
    (by ``ACTION_RANK``) replaces the entire value;
 3. otherwise span decisions (pattern findings) — overlapping spans are merged, each merged span
-   takes its most protective action, and spans are rewritten right-to-left so surrounding debug
-   context is preserved.
+   takes its most protective action (on a tie, the most confident finding names it), and spans
+   are rewritten right-to-left so surrounding debug context is preserved.
 
 ``block`` and ``review`` never reach this module: the planner withholds output before pass two.
 """
@@ -178,7 +178,9 @@ class Transformer:
             if groups and span[0] < groups[-1][1]:
                 group = groups[-1]
                 group[1] = max(group[1], span[1])
-                if ACTION_RANK[decision.action] > ACTION_RANK[group[3].action]:
+                rank, current = ACTION_RANK[decision.action], ACTION_RANK[group[3].action]
+                # Equally protective: the more confident finding names the span (its marker).
+                if rank > current or (rank == current and finding.confidence > group[2].confidence):
                     group[2], group[3] = finding, decision
             else:
                 groups.append([span[0], span[1], finding, decision])
