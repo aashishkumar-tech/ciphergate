@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-02
+
+Blocked runs now say what to do next, and directory runs no longer hide files they never
+scanned. A strict directory `rescan` that skips files with unrecognised extensions now exits 7
+instead of 0.
+
 ### Added
 
 - Blocked, review and failed runs print `next:` lines in the terminal summary: what to pass,
@@ -344,7 +350,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.8.0...v0.9.0
