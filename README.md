@@ -193,9 +193,32 @@ controlled pipeline configuration.
 ## Shipped policy templates (review before use)
 
 `dev_local`, `stg_test`, `prd_external_ai`, `developer_logs`, `test_dataset`, `external_ai`,
-`healthcare_template`, `financial_template`, `local_debug`, and `multi_environment` (one policy
+`healthcare_template`, `financial_template`, `local_debug`, `hospital_us_override` (a layered example, see below), and `multi_environment` (one policy
 whose outcomes vary by environment *and* destination). All validate in CI. Templates named for
 healthcare or finance are starting points, **not** HIPAA/PCI controls.
+
+### Policy layering
+
+A policy can `extends:` shipped packs, so a team keeps only its own differences in a small file:
+
+```text
+healthcare_baseline  (global strict default)  ->  us_hipaa  (US identifier list)  ->  your file
+```
+
+```bash
+ciphergate init --template hospital_us_override --output my-hospital.yml
+ciphergate validate-policy my-hospital.yml
+#   layers: healthcare_baseline -> us_hipaa -> hospital-us-override
+```
+
+A later layer can add context, detectors, classifications and stricter rules. It cannot quietly
+weaken an earlier one: a weaker setting, a disabled detector or a rule that would override a
+block, review or redaction with something weaker fails validation unless the rule names what it
+relaxes (`relaxes: [rule-id]`), which is then reported as a warning. Hard and guardrail rules
+can never be relaxed. Reports list every layer with its digest and show which layer decided
+each value. `us_hipaa` is modelled on the HIPAA Safe Harbor identifier list but is **not** Safe
+Harbor or Expert Determination by itself. See
+[docs/policy-schema.md](docs/policy-schema.md#layering-extends).
 
 ## Commands and exit codes
 

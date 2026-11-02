@@ -2,20 +2,9 @@
 
 from __future__ import annotations
 
-from importlib import resources
-from importlib.resources.abc import Traversable
-from pathlib import Path
-
 from ciphergate.errors import UsageError
+from ciphergate.policy.loader import bundled_policies_dir as _templates_dir
 from ciphergate.policy.validator import Policy, load_policy_text
-
-
-def _templates_dir() -> Traversable:
-    packaged = resources.files("ciphergate").joinpath("policies")
-    if packaged.is_dir():
-        return packaged
-    # Editable install: the build copies policies/ into wheels only, so use the source checkout.
-    return Path(__file__).resolve().parents[3] / "policies"
 
 
 def template_names() -> list[str]:

@@ -17,6 +17,17 @@
 - Environment, target environment and destination are declared by the caller or policy and are
   not verified. CipherGate does not inspect cloud identity or control deployments.
 
+## Policy layering
+
+- `extends` names shipped packs only; a policy cannot extend a local file in this release.
+- The weakening check compares rule selectors statically and conservatively: it can reject a
+  rule that would never actually override the earlier one (narrow the selectors or use
+  `relaxes`), and it cannot see differences that depend on detector behaviour.
+- The `us_hipaa` pack does not implement the 3-digit ZIP allowance (whole ZIP codes are
+  redacted), cannot check the Safe Harbor "no actual knowledge" condition, does not parse
+  photos or biometric data, and cannot know every "other unique identifying number". It is
+  not Safe Harbor or Expert Determination by itself.
+
 ## Formats and processing
 
 - JSON is parsed as a whole document (default limit 32 MiB). CSV/JSONL/text are streamed with

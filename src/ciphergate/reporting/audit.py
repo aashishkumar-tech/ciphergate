@@ -11,6 +11,7 @@ from ciphergate.constants import PSEUDONYM_VERSION
 from ciphergate.models.report import RescanSummary, RunReport, RunStatus
 from ciphergate.pipeline.paths import display_path
 from ciphergate.pipeline.planner import Analysis
+from ciphergate.policy.layers import PolicyLayer
 
 
 def new_run_id() -> str:
@@ -19,6 +20,14 @@ def new_run_id() -> str:
 
 def utc_now() -> str:
     return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def layer_report(layer: PolicyLayer, path_mode: str) -> dict[str, Any]:
+    """Shipped packs keep their name; the user's own file follows the path display setting."""
+    data = layer.to_dict()
+    if layer.kind == "policy" and path_mode == "redacted":
+        data["source"] = None
+    return data
 
 
 def build_report(
@@ -61,6 +70,11 @@ def build_report(
             "digest": policy.digest,
             "source": policy.source_name if path_mode != "redacted" else None,
             "strict": policy.document.settings.strict,
+            **(
+                {"layers": [layer_report(x, path_mode) for x in policy.layers]}
+                if policy.layers
+                else {}
+            ),
         },
         context=setup.ctx.to_report(),
         gates=[g.to_dict() for g in analysis.gates],

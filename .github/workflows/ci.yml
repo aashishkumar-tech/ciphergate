@@ -73,7 +73,7 @@ jobs:
         run: mypy
       - name: Validate shipped policies
         shell: bash
-        run: for f in policies/*.yml src/ciphergate/templates/*.yml; do ciphergate validate-policy "$f"; done
+        run: for f in policies/*.yml policies/packs/*.yml src/ciphergate/templates/*.yml; do ciphergate validate-policy "$f"; done
       - name: Tests with coverage
         run: python -m pytest -q --cov=ciphergate --cov-report=term --cov-fail-under=85
 

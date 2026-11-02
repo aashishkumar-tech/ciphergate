@@ -6,6 +6,25 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Policy layering: `extends: [pack, ...]` builds one effective policy from shipped packs plus
+  your own file. Layers merge so that a later layer can never quietly weaken an earlier one.
+  Conflicting context pins, weaker settings or requirements, disabled detectors, and rules or
+  defaults that would override an earlier block, review or transform with something weaker
+  fail validation. A rule may weaken an earlier rule or default only by naming it in the new
+  `relaxes` field; this is reported as a warning. Earlier `hard` and `guardrail` rules can
+  never be relaxed.
+- Shipped packs (templates requiring review): `healthcare_baseline`, a strict global healthcare
+  default, and `us_hipaa`, field classifications modelled on the HIPAA Safe Harbor identifier
+  list, with ages over 89 shown as `90+`. `us_hipaa` is not Safe Harbor or Expert Determination
+  by itself.
+- New template `hospital_us_override`, an example hospital layer on top of `us_hipaa`.
+- Reports list the policy's layers (name, kind, source, file digest), and each decision names
+  the layer that made it. `policy.digest` now covers every layer. `validate-policy` prints the
+  layer chain and adds `layers` to its JSON output. The terminal summary and the review page
+  show the layer next to the rule id.
+
 ## [0.16.0] - 2026-11-02
 
 `ciphergate review` writes a local HTML page that shows, as a trace, what sanitize would change

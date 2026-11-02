@@ -450,3 +450,21 @@ def test_subprocess_internal_error_is_safe(tmp_path: Path) -> None:
         check=False,
     )
     assert r.returncode == 3 and "policy_not_found" in r.stderr and "Traceback" not in r.stderr
+
+
+def test_validate_policy_shows_layers() -> None:
+    path = POLICIES / "hospital_us_override.yml"
+    r = invoke("validate-policy", path)
+    assert r.exit_code == 0
+    assert "layers: healthcare_baseline -> us_hipaa -> hospital-us-override" in r.stdout
+    assert "relaxes default 'location.*'" in r.stdout
+    data = json.loads(invoke("validate-policy", path, "--report-format", "json").stdout)
+    assert [x["name"] for x in data["layers"]] == [
+        "healthcare_baseline",
+        "us_hipaa",
+        "hospital-us-override",
+    ]
+    single = json.loads(
+        invoke("validate-policy", POLICIES / "dev_local.yml", "--report-format", "json").stdout
+    )
+    assert single["layers"] == []

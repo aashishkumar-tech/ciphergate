@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import hashlib
+from importlib import resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
 
@@ -114,3 +116,12 @@ def parse_policy_yaml(data: bytes) -> dict[str, Any]:
 def policy_digest(data: bytes) -> str:
     """Digest of the policy file contents. Policies reference keys by env-var name only."""
     return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+def bundled_policies_dir() -> Traversable:
+    """The shipped ``policies/`` directory (starter templates, plus ``packs/`` for layering)."""
+    packaged = resources.files("ciphergate").joinpath("policies")
+    if packaged.is_dir():
+        return packaged
+    # Editable install: the build copies policies/ into wheels only, so use the source checkout.
+    return Path(__file__).resolve().parents[3] / "policies"

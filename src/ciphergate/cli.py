@@ -451,6 +451,7 @@ def validate_policy_command(
                 "valid": result.valid,
                 "policy": result.policy.name if result.policy else None,
                 "digest": result.policy.digest if result.policy else None,
+                "layers": [x.to_dict() for x in result.policy.layers] if result.policy else [],
                 "errors": [
                     {"location": i.location, "message": i.message, "code": i.code}
                     for i in result.errors
@@ -464,6 +465,9 @@ def validate_policy_command(
                     f"policy '{escape_control(result.policy.name)}' is valid "
                     f"({result.policy.digest[:19]}...)\n"
                 )
+                if result.policy.layers:
+                    chain = " -> ".join(escape_control(x.name) for x in result.policy.layers)
+                    sys.stdout.write(f"  layers: {chain}\n")
                 for warning in result.warnings:
                     sys.stdout.write(f"  warning: {escape_control(warning)}\n")
         else:

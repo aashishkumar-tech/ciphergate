@@ -30,6 +30,7 @@ CATEGORY_SELECTOR_RE = re.compile(r"^(\*|[a-z][a-z0-9_]*\.\*|[a-z][a-z0-9_]*\.[a
 ENV_VAR_RE = r"^[A-Z_][A-Z0-9_]{0,127}$"
 MARKER_RE = re.compile(r"^\[[A-Z][A-Z0-9_]{0,31}(?::(?:\{category\}|[a-z0-9_.]{1,48}))?\]$")
 PREFIX_RE = r"^([a-z][a-z0-9_]{0,31})?$"
+RELAXES_RE = r"^([a-z0-9][a-z0-9_.-]{0,63}|defaults:[a-z0-9_.*]{1,64})$"
 
 Slug = Annotated[str, Field(pattern=SLUG_RE)]
 EnvVarName = Annotated[str, Field(pattern=ENV_VAR_RE)]
@@ -340,6 +341,8 @@ class Rule(StrictModel):
     params: dict[str, Any] = Field(default_factory=dict)
     reason: Slug | None = None
     acknowledge_risk: bool = False
+    # Rules (or ``defaults:<selector>``) from earlier layers this rule may deliberately weaken.
+    relaxes: list[Annotated[str, Field(pattern=RELAXES_RE)]] = Field(default_factory=list)
 
     @field_validator("action", mode="before")
     @classmethod
@@ -383,6 +386,8 @@ class Transfer(StrictModel):
 class PolicyDocument(StrictModel):
     policy_version: Literal[1]
     name: Slug
+    # Shipped packs this policy builds on, by name only (never a path); see policy/layers.py.
+    extends: Annotated[list[Slug], Field(max_length=4)] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     context: PolicyContext = Field(default_factory=PolicyContext)
     requirements: Requirements = Field(default_factory=Requirements)

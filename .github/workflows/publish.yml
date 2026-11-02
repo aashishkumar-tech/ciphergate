@@ -69,7 +69,7 @@ jobs:
           /tmp/cg/bin/pip install dist/*.whl
           export PATH=/tmp/cg/bin:$PATH
           test "$(ciphergate --version)" = "ciphergate $VERSION"
-          for p in policies/*.yml; do ciphergate validate-policy "$p" --quiet; done
+          for p in policies/*.yml policies/packs/*.yml; do ciphergate validate-policy "$p" --quiet; done
           cd "$(mktemp -d)"
           ciphergate init --template prd_external_ai --output packaged.yml --quiet
           ciphergate validate-policy packaged.yml --quiet

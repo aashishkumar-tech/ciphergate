@@ -1,0 +1,109 @@
+# TEMPLATE REQUIRING REVIEW. Layering pack: a strict starting point for healthcare-style data
+# in any country. Name it in `extends:` (or extend a jurisdiction pack such as us_hipaa) and add
+# your own file on top. It is NOT legal or compliance advice and NOT a de-identification method:
+# clinical free text, rare conditions, small geographies and combinations of quasi-identifiers
+# can remain identifying, and detection can miss values. Expert review is still needed.
+#
+# What it does, for every destination:
+#   * credential findings are hard-blocked (no later layer can weaken that);
+#   * clinical values (diagnosis, medication, ...): blocked toward external/unknown destinations,
+#     human review everywhere else;
+#   * direct identifiers (pii.*, patient ids, health/financial/employment fields): redacted;
+#   * dates of birth and clinical dates: reduced to the year;
+#   * internal infrastructure (hostnames, internal URLs/IPs, trace ids): redacted;
+#   * anything else that looks sensitive: review.
+# No key is needed. Later layers may swap a transform for another (for example keyed
+# pseudonyms), but weakening a block/review or allowing a value needs an explicit `relaxes`.
+policy_version: 1
+name: healthcare-baseline
+metadata:
+  description: "Strict global healthcare baseline for policy layering. Template requiring review; not a compliance claim."
+  pack_version: 1
+context:
+  domain_profile: healthcare
+requirements:
+  environment: true
+  destination: true
+settings:
+  strict: true
+  scan_json_keys: true
+  fail_on_parse_error: true
+  unknown_sensitive_behavior: review
+custom_categories:
+  - health.clinical_date
+classifications:
+  - id: baseline-clinical-dates
+    field_names: [admission_date, discharge_date, visit_date, procedure_date, encounter_date, death_date, date_of_death]
+    category: health.clinical_date
+    confidence: 0.9
+  - id: baseline-clinical-values
+    field_names: [diagnoses, problem_list, lab_result, test_result, symptoms, treatment, chief_complaint]
+    category: health.phi
+    confidence: 0.8
+rules:
+  - id: baseline-block-credentials
+    hard: true
+    priority: 1000
+    match:
+      categories: [credential.secret]
+    action: block
+    reason: credentials_never_in_health_data
+
+  - id: baseline-block-clinical-values-external
+    priority: 800
+    match:
+      destinations: [external_vendor, external_ai, public_repository, unknown]
+      categories: [health.phi]
+      field_names: [diagnosis, diagnoses, medication, medications, condition, allergies, prescription, clinical_notes, icd_code, procedure_code, problem_list, lab_result, test_result, symptoms, treatment, chief_complaint]
+    action: block
+    reason: clinical_values_need_expert_review_before_external_release
+
+  - id: baseline-review-clinical-values
+    priority: 400
+    match:
+      categories: [health.phi]
+      field_names: [diagnosis, diagnoses, medication, medications, condition, allergies, prescription, clinical_notes, icd_code, procedure_code, problem_list, lab_result, test_result, symptoms, treatment, chief_complaint]
+    action: review
+    reason: clinical_values_require_human_decision
+
+  - id: baseline-dob-year
+    priority: 300
+    match:
+      categories: [pii.date_of_birth]
+    action: generalize
+    params:
+      strategy: year
+    reason: keep_birth_year_only
+
+  - id: baseline-clinical-dates-year
+    priority: 300
+    match:
+      categories: [health.clinical_date]
+    action: generalize
+    params:
+      strategy: year
+    reason: keep_clinical_year_only
+
+  - id: baseline-redact-identifiers
+    priority: 200
+    match:
+      categories: [pii.*, health.phi, financial.sensitive, employment.sensitive]
+    action: redact
+    reason: remove_identifier
+
+  - id: baseline-redact-infrastructure
+    priority: 200
+    match:
+      categories: [network.telemetry, security.internal]
+    action: redact
+    reason: remove_internal_infrastructure_detail
+
+defaults:
+  location.*:
+    action: redact
+  identifier.*:
+    action: redact
+  proprietary.*:
+    action: review
+  "*":
+    action: review
