@@ -1,7 +1,9 @@
 """Payment-card-like detector: 13-19 digits, Luhn-valid, scored by issuer prefix and context.
 
-A Luhn-valid digit run without a known issuer prefix or context keyword is low confidence:
-long numeric identifiers pass Luhn roughly 10% of the time by chance.
+Long numeric identifiers pass Luhn roughly 10% of the time by chance, so a Luhn-valid run is
+reported only with a known issuer prefix or a card keyword nearby. An issuer-prefixed run right
+after an identifier word such as "invoice" or "batch id" is also skipped unless a card keyword
+is present. Cards with other prefixes (for example Maestro) and no keyword are missed.
 """
 
 from __future__ import annotations
@@ -16,6 +18,12 @@ _CVV_RE = re.compile(
     r"(?i)(?<![a-z0-9])(?:cvv2?|cvc2?)(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}(?:\\?[\"'])?(\d{3,4})(?!\d)"
 )
 _KEYWORDS = ("card", "visa", "mastercard", "amex", "pan", "cc", "credit", "debit", "payment")
+# Words that label a number as some other identifier. Whole words only: a substring match
+# would let "paid" (which contains "id") hide a real card.
+_ID_WORD_RE = re.compile(
+    r"(?i)(?<![a-z])(?:id|invoice|order|batch|total|trace|request|ref|seq|sequence|ticket|"
+    r"build|job|txn|transaction)(?![a-z])"
+)
 
 
 def luhn_valid(digits: str) -> bool:
@@ -38,8 +46,15 @@ def known_issuer_prefix(digits: str) -> bool:
         return len(digits) == 16
     if two in (34, 37):
         return len(digits) == 15
-    if digits.startswith("6011") or two == 65:
+    three = int(digits[:3])
+    if digits.startswith("6011") or two == 65 or 644 <= three <= 649:
         return len(digits) in (16, 19)
+    if 3528 <= four <= 3589 or two == 62:  # JCB, UnionPay
+        return 16 <= len(digits) <= 19
+    if 300 <= three <= 305 or two in (36, 38, 39):  # Diners Club
+        return 14 <= len(digits) <= 19
+    if 2200 <= four <= 2204:  # Mir
+        return 16 <= len(digits) <= 19
     return False
 
 
@@ -71,12 +86,18 @@ class PaymentCardDetector:
             seps = {c for c in raw if c in " -"}
             if len(seps) > 1:
                 continue
+            issuer = known_issuer_prefix(digits)
+            keyword = preceding_context(text, m.start(), _KEYWORDS, window=32)
+            if not keyword and (
+                not issuer or _ID_WORD_RE.search(text[max(0, m.start() - 16) : m.start()])
+            ):
+                continue
             evidence = ["pattern_match", "checksum_valid"]
             confidence = 0.4
-            if known_issuer_prefix(digits):
+            if issuer:
                 confidence = 0.8
                 evidence.append("issuer_prefix")
-            if preceding_context(text, m.start(), _KEYWORDS, window=32):
+            if keyword:
                 confidence += 0.15
                 evidence.append("context_keyword")
             out.append(

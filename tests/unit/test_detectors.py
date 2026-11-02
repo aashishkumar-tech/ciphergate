@@ -158,12 +158,58 @@ def test_card_luhn_invalid_ignored() -> None:
     assert PaymentCardDetector().detect(item("4111 1111 1111 1112")) == []
 
 
-def test_long_luhn_valid_identifier_without_prefix_is_low() -> None:
-    # 18-digit Luhn-valid number without issuer prefix or context.
+def test_luhn_valid_identifier_without_prefix_or_keyword_is_ignored() -> None:
+    # 18-digit Luhn-valid number without issuer prefix or context: a random ID, not a card.
     digits = "100000000000000008"
     assert luhn_valid(digits)
-    f = PaymentCardDetector().detect(item(f"order {digits}"))
-    assert f and f[0].band == "low"
+    assert PaymentCardDetector().detect(item(f"order {digits}")) == []
+
+
+def test_card_keyword_still_finds_a_number_without_issuer_prefix() -> None:
+    f = PaymentCardDetector().detect(item("card 100000000000000008"))
+    assert f and f[0].band == "medium" and "context_keyword" in f[0].evidence
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["invoice total 4111111111111111 units", "batch id 4111111111111111 queued"],
+)
+def test_issuer_prefixed_identifier_after_an_id_word_is_ignored(text: str) -> None:
+    assert PaymentCardDetector().detect(item(text)) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "user paid with 4111 1111 1111 1111",
+        "valid 4111111111111111",
+        "orderly 4111111111111111",
+        "rebuilds 4111111111111111",
+    ],
+)
+def test_id_words_match_whole_words_only(text: str) -> None:
+    # "paid" contains "id": a substring match hid real cards (caught by the leak test).
+    assert PaymentCardDetector().detect(item(text))
+
+
+def test_card_keyword_wins_over_an_id_word() -> None:
+    assert PaymentCardDetector().detect(item("order paid by card 4111111111111111"))
+
+
+@pytest.mark.parametrize(
+    "digits",
+    [
+        "3530111333300000",  # JCB
+        "6200000000000005",  # UnionPay
+        "36227206271667",  # Diners Club
+        "6445644564456445",  # Discover 644-649
+        "2200000000000004",  # Mir
+    ],
+)
+def test_more_issuer_prefixes(digits: str) -> None:
+    assert luhn_valid(digits)
+    f = PaymentCardDetector().detect(item(f"charged {digits}"))
+    assert f and "issuer_prefix" in f[0].evidence
 
 
 def test_card_mixed_separators_and_repeated_digits_ignored() -> None:
