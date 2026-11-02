@@ -324,7 +324,8 @@ def coverage_warnings(
 def _require_files(discovery: Discovery) -> None:
     if not discovery.files:
         raise InputFormatError(
-            "no supported input files found in the directory (see --format, --recursive)",
+            "no supported input files found in the directory (see --extension-format, --format, "
+            "--recursive)",
             code="batch_empty",
         )
 

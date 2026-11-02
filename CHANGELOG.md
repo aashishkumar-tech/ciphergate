@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Fixed
+
+- The `batch_empty` error for a directory with no recognised files now mentions
+  `--extension-format`.
+
 ## [0.14.0] - 2026-11-02
 
 Adds `--extension-format` for mixed directories and tests the optional NER detector against a
