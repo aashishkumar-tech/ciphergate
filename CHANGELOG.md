@@ -6,6 +6,13 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Blocked, review and failed runs print `next:` lines in the terminal summary: what to pass,
+  what to change in the policy, or what to remove from the input. The hints come from reason
+  codes and never include input values. The JSON report is unchanged.
+- `docs/policy-schema.md` explains `hard` and `guardrail` rules.
+
 ## [0.11.0] - 2026-10-31
 
 Makes a clean rescan harder to mistake for proof of safety. Scripts that read `PASSED` from the
