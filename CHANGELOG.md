@@ -8,6 +8,14 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- `ciphergate review INPUT --policy P -o page.html` writes one local HTML page that shows
+  what sanitize would change. It covers findings, how many are transformed, kept, blocked
+  or waiting for review, a per-category table, rescan results, possible partial finds,
+  and each record with its changes highlighted and labelled with category, action, rule
+  and reason code. No sanitized file is written. The page holds the would-be output; the
+  raw input is added only with `--include-input`. The page has no scripts, loads nothing,
+  is written atomically, and is not overwritten without `--force`. The exit code matches
+  `plan`.
 - `scripts/benchmark/ner_names.py` measures the optional NER detector on generated log lines.
   With `en_core_web_sm` it found any part of 57-59% of names and the whole name in 41%, missed
   most lowercase and upper-case names, and flagged 3 of 16 name-free lines. Details and limits

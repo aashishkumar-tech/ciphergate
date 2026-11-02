@@ -40,6 +40,7 @@ Report (reporting/)            privacy-safe JSON / text summary
 | `transforms/` | Execute approved actions; HMAC pseudonyms; key lookup | log values or keys |
 | `pipeline/` | Orchestration, two passes, rescan, atomic output, path safety | publish on any failure |
 | `reporting/` | Report building, control-char escaping, field-path masking, rendering | include values/fingerprints |
+| `pipeline/review.py`, `reporting/review_page.py` | `review`: sanitize steps without publishing, per-record changes, local HTML page | publish output, add input without `--include-input`, load anything |
 | `cli.py` | Typer CLI, exit codes, safe error rendering, SIGTERM -> interrupt | enable rich tracebacks (they print locals) |
 
 ## Why two passes

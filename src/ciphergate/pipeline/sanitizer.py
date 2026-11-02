@@ -14,6 +14,7 @@ Sanitize flow (apply mode):
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
@@ -176,8 +177,16 @@ def _withheld(shown: str | None, analysis: Analysis, reason: str) -> dict[str, A
 # --------------------------------------------------------------------------- pass two
 
 
+# Called once per written or dropped record: (record, decisions, transformed data or None).
+RecordObserver = Callable[[Record, list[tuple[Any, Evaluated]], Any], None]
+
+
 def _write_transformed(
-    setup: RunSetup, analysis: Analysis, stream: IO[str], keys: KeyProvider
+    setup: RunSetup,
+    analysis: Analysis,
+    stream: IO[str],
+    keys: KeyProvider,
+    on_record: RecordObserver | None = None,
 ) -> dict[str, Any]:
     reader = setup.new_reader()
     analyzer = Analyzer(setup, reader)
@@ -207,10 +216,14 @@ def _write_transformed(
                 actions[str(decision.action)] += 1
         if any(d.action == Action.DROP_RECORD for _, ev in analyzed for _, d in ev):
             stats["records_dropped"] += 1
+            if on_record is not None:
+                on_record(record, analyzed, None)
             continue
         data = _transform_record(
             setup.fmt, record, analyzed, transformer, stats, reader, setup.runtime.max_json_depth
         )
+        if on_record is not None:
+            on_record(record, analyzed, data)
         writer.write_record(record, data)
         stats["records_written"] += 1
     writer.close()
