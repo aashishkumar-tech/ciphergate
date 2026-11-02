@@ -6,6 +6,13 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/benchmark/ner_names.py` measures the optional NER detector on generated log lines.
+  With `en_core_web_sm` it found any part of 57-59% of names and the whole name in 41%, missed
+  most lowercase and upper-case names, and flagged 3 of 16 name-free lines. Details and limits
+  are in `docs/detector-coverage.md`. The detector itself is unchanged.
+
 ## [0.15.0] - 2026-11-02
 
 JSON reports now include the next-step hints, so CI pipelines can act on them. The field is new;
