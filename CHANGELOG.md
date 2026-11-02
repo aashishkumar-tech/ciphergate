@@ -6,6 +6,13 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Tests that run the optional NER detector against a real Presidio install with the
+  `en_core_web_sm` model, including a `sanitize` run with network access disabled. They skip
+  when Presidio is not installed. A new non-required CI job, `ner`, installs the extra and a
+  hash-pinned model and runs them.
+
 ## [0.13.0] - 2026-11-02
 
 Fewer random IDs are reported as payment cards. Cards with an unrecognised prefix and no card
