@@ -496,3 +496,11 @@ def test_sanitize_directory_with_extension_format(tmp_path: Path, env) -> None:
     assert r.exit_code == 0, r.stdout
     assert sorted(p.name for p in out.iterdir()) == ["app.log", "users.dat"]
     assert "alice@example.com" not in (out / "users.dat").read_text(encoding="utf-8")
+
+
+def test_empty_directory_error_mentions_extension_format(tmp_path: Path, env) -> None:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "users.dat").write_text("email\nx\n", encoding="utf-8")
+    r = invoke("inspect", root, *PRD_EXTERNAL, env=env)
+    assert r.exit_code == 4 and "--extension-format" in r.stdout + r.stderr
