@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-02
+
+Policies can now be built in layers. A shipped baseline pack, a jurisdiction pack (US, EU or
+India) and your own small file merge into one policy, and a later layer cannot quietly weaken
+an earlier one. The packs are templates requiring review, not legal or compliance advice.
+
 ### Added
 
 - Policy layering: `extends: [pack, ...]` builds one effective policy from shipped packs plus
@@ -447,7 +453,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.13.0...v0.14.0
