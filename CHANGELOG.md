@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-02
+
+JSON reports now include the next-step hints, so CI pipelines can act on them. The field is new;
+nothing existing changes.
+
 ### Added
 
 - JSON reports (single-file and directory) include `next_steps`: the hints from the terminal
@@ -390,7 +395,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.11.0...v0.12.0
