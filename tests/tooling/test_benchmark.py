@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -16,6 +19,7 @@ from tests.conftest import ROOT
 sys.path.insert(0, str(ROOT / "scripts" / "benchmark"))
 
 import compare_tools
+import ner_names
 
 
 def test_corpus_is_repeatable_for_a_seed() -> None:
@@ -74,3 +78,54 @@ def test_results_are_not_tracked() -> None:
         check=True,
     ).stdout.split()
     assert not [f for f in tracked if f.endswith((".jsonl", ".json"))]
+
+
+def _fake_ner(span: Callable[[str], tuple[int, int] | None]) -> type:
+    """A stand-in for PresidioDetector that reports one person-name span per line."""
+
+    class FakeNer:
+        def __init__(self, settings: object) -> None:
+            self.settings = settings
+
+        def detect(self, item: Any) -> list[object]:
+            found = span(item.text)
+            if found is None:
+                return []
+            loc = SimpleNamespace(span=found)
+            return [SimpleNamespace(category="pii.person_name", location=loc)]
+
+    return FakeNer
+
+
+@pytest.mark.parametrize(
+    ("span", "caught", "covered", "alarms"),
+    [
+        (lambda text: (0, len(text)), "80/80", "80/80", "16/16"),  # everything flagged
+        (lambda text: None, "0/80", "0/80", "0/16"),  # nothing flagged
+        (lambda text: (0, 1), None, "0/80", None),  # one character: never the whole name
+    ],
+)
+def test_ner_benchmark_scores_overlap_and_full_cover(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    span: Callable[[str], tuple[int, int] | None],
+    caught: str | None,
+    covered: str,
+    alarms: str | None,
+) -> None:
+    monkeypatch.setattr(ner_names, "PresidioDetector", _fake_ner(span))
+    assert ner_names.main(["--per-cell", "2", "--seed", "3"]) == 0
+    out = capsys.readouterr().out
+    assert "lines=80" in out and f"fully covered:        {covered}" in out
+    if caught:
+        assert f"names caught (any overlap): {caught}" in out
+    if alarms:
+        assert f"false alarms on name-free lines: {alarms}" in out
+    for style in ner_names.STYLES:
+        assert style in out
+
+
+def test_ner_benchmark_names_appear_in_every_template() -> None:
+    for template in ner_names.TEMPLATES:
+        assert template.count("{name}") == 1
+    assert ner_names.overlaps((0, 5), 4, 9) and not ner_names.overlaps((0, 4), 4, 9)

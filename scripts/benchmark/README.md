@@ -30,6 +30,14 @@ Only CipherGate is required. Any other tool that is not installed is skipped and
 credentials that must not be committed. The tool refuses a path inside the repository. Results
 are repeatable for the same `--seed` and tool versions.
 
+## Name detection (`ner_names.py`)
+
+`python scripts/benchmark/ner_names.py --model en_core_web_sm` measures the optional NER detector
+on generated log lines: names from eight regions written five ways (`First Last`, `Last, First`,
+lowercase, first name only, upper case) and name-free lines. It needs `presidio-analyzer` and the
+spaCy model installed in the same environment, and prints only counts. Results for
+`en_core_web_sm` are in [docs/detector-coverage.md](../../docs/detector-coverage.md).
+
 ## Reading the output
 
 Each row is a data class, and each cell is caught/total. A positive counts only if the finding

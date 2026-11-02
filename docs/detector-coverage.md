@@ -32,8 +32,31 @@ in `tests/unit/test_presidio_ner.py` use a fake engine. `tests/integration/test_
 runs the real Presidio with `en_core_web_sm`: it finds a common synthetic name and place, ignores
 text with no entities, removes them in a `sanitize` run with network access disabled, and fails
 closed when the model is missing. CI runs it in the `ner` job (not a required check). These are
-smoke tests on a few sentences: accuracy on real text has not been measured by this project,
-and the small model misses names that the larger `en_core_web_lg` may find.
+smoke tests on a few sentences.
+
+`scripts/benchmark/ner_names.py` measures name detection on 320 generated log lines (8 regions x
+5 ways of writing a name x 8 lines) plus 16 name-free lines. With `en_core_web_sm` (spaCy 3.8,
+Presidio 2.2.366), seeds 7 and 11:
+
+| | seed 7 | seed 11 |
+|---|---|---|
+| names with any part found | 184/320 (57%) | 190/320 (59%) |
+| names found in full | 130/320 (41%) | 132/320 (41%) |
+| name-free lines flagged | 3/16 | 3/16 |
+
+- When only part of a name is found, the rest stays in the output (for example the family name).
+- `First Last` and `Last, First` are found most often (50-61 of 64). Lowercase (27/64) and
+  upper-case (15/64) names are mostly missed.
+- English, Chinese and German names were found more often (27-35 of 40) than Indian and West
+  African names (12-17 of 40).
+- The false alarms were product names (`Kafka`, `Jenkins`, `Grafana`).
+- `min_score` from 0.4 to 0.85 changed nothing: Presidio gives these spaCy entities one fixed
+  score, so the threshold cannot trade misses against false alarms with this model.
+- The default `en_core_web_lg` was not measured. Run the script with `--model en_core_web_lg`
+  after installing it.
+
+These are synthetic lines written by the project, not a public accuracy claim. Treat the NER
+detector as an extra layer: do not rely on it alone to remove names, especially from free text.
 
 ## Text/log specifics
 
