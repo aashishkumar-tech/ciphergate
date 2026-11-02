@@ -224,3 +224,32 @@ def test_whole_replacements_and_cuts_are_not_flagged() -> None:
     assert kinds("1990-04-12", "1990", ("pii.date_of_birth · generalize · r · c",)) == [
         ("delete", "", False)
     ]
+
+
+def test_page_is_a_trace_with_steps_records_and_timings(tmp_path: Path) -> None:
+    from ciphergate import load_policy
+
+    policy = load_policy(POLICIES / "developer_logs.yml")
+    data = review_file(EXAMPLES / "sample.log", tmp_path / "r.html", policy, DEV)
+    text = (tmp_path / "r.html").read_text(encoding="utf-8")
+    assert set(data.timings) == {"plan", "transform", "rescan"}
+    assert all(v >= 0 for v in data.timings.values())
+    assert 'id="s-run" checked>' in text and text.count(" checked>") == 1
+    for step in ("run", "plan", "read", "detect", "decide", "transform", "rescan", "output"):
+        assert f'for="s-{step}"' in text
+        assert f'id="p-{step}"' in text
+    assert len(re.findall(r'for="s-r[0-9]+"', text)) == len(data.records) == 5
+    assert "#s-r0:checked~.layout #p-r0{display:block}" in text
+
+
+def test_blocked_trace_marks_transform_and_rescan_skipped(tmp_path: Path) -> None:
+    from ciphergate import load_policy
+
+    source = tmp_path / "app.log"
+    source.write_text("deploy token=TEST_ONLY_NOT_A_CREDENTIAL\n", encoding="utf-8")
+    policy = load_policy(POLICIES / "prd_external_ai.yml")
+    data = review_file(source, tmp_path / "r.html", policy, ctx("prd", "external", "external_ai"))
+    text = (tmp_path / "r.html").read_text(encoding="utf-8")
+    assert set(data.timings) == {"plan", "collect"}
+    assert text.count('<span class="rt">skipped</span>') == 2
+    assert "TEST_ONLY_NOT_A_CREDENTIAL" not in text
