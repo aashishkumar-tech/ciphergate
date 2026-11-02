@@ -6,6 +6,14 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Changed
+
+- `luhn_card` reports fewer random IDs as cards. A Luhn-valid number now needs a known
+  issuer prefix or a card keyword nearby, and an issuer-prefixed number right after an ID
+  word such as `invoice` or `batch id` needs a card keyword. JCB, UnionPay, Diners Club,
+  Mir and Discover 644-649 prefixes are now recognised. Cards with other prefixes and no
+  keyword are no longer reported.
+
 ## [0.12.0] - 2026-11-02
 
 Blocked runs now say what to do next, and directory runs no longer hide files they never
