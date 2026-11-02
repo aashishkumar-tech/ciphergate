@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
+from ciphergate.constants import InputFormat
+
 PathDisplay = Literal["basename", "redacted", "full"]
+_EXTENSION_RE = re.compile(r"^\.[a-z0-9_-]{1,16}$")
 
 MIB = 1024 * 1024
 
@@ -27,6 +31,9 @@ class RuntimeSettings:
     encoding: str = "utf-8"
     csv_delimiter: str = ","
     path_display: PathDisplay = "basename"
+    # Extra or replacement extension -> format mappings, e.g. {".dat": csv}. Keys are
+    # lower-case single suffixes. An explicit --format still wins for every file.
+    extension_formats: dict[str, InputFormat] = field(default_factory=dict)
     # Stored for completeness of the run report; never changes decisions.
     extra: dict[str, str] = field(default_factory=dict)
 
@@ -44,6 +51,12 @@ class RuntimeSettings:
                 raise ValueError(f"{name} must be a positive integer")
         if len(self.csv_delimiter) != 1 or self.csv_delimiter in '\r\n"':
             raise ValueError("csv_delimiter must be a single character other than quote or newline")
+        for ext in self.extension_formats:
+            if not _EXTENSION_RE.match(ext):
+                raise ValueError(
+                    "extension_formats keys must look like '.dat' (a dot, then 1-16 "
+                    "lower-case letters, digits, '_' or '-')"
+                )
 
     def with_overrides(self, **changes: object) -> RuntimeSettings:
         clean = {k: v for k, v in changes.items() if v is not None}

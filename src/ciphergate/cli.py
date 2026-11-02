@@ -117,6 +117,15 @@ PolicyOpt = Annotated[Path, typer.Option("--policy", "-p", help="Policy YAML fil
 FormatOpt = Annotated[
     InputFormat | None, typer.Option("--format", help="Input format (default: from extension).")
 ]
+ExtFormatOpt = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--extension-format",
+        metavar="EXT=FORMAT",
+        help="Read files with this extension as FORMAT, e.g. .dat=csv or .log=jsonlog. "
+        "Repeatable. Cannot be combined with --format.",
+    ),
+]
 ReportOpt = Annotated[
     Path | None, typer.Option("--report", help="Write the privacy-safe report to this file.")
 ]
@@ -192,16 +201,50 @@ def _runtime(
     encoding: str | None,
     path_display: PathDisplayChoice | None,
     max_files: int | None = None,
+    extension_formats: list[str] | None = None,
+    fmt: InputFormat | None = None,
 ) -> RuntimeSettings:
+    mapping = _parse_extension_formats(extension_formats or [])
+    if mapping and fmt is not None:
+        raise UsageError(
+            "use either --format (one format for every file) or --extension-format, not both",
+            code="format_conflict",
+        )
     try:
         return RuntimeSettings().with_overrides(
             max_input_bytes=max_bytes,
             encoding=encoding,
             path_display=str(path_display) if path_display else None,
             max_batch_files=max_files,
+            extension_formats=mapping or None,
         )
     except ValueError as exc:
         raise UsageError(str(exc), code="invalid_runtime_setting") from None
+
+
+def _parse_extension_formats(values: list[str]) -> dict[str, InputFormat]:
+    mapping: dict[str, InputFormat] = {}
+    for value in values:
+        ext, sep, name = value.partition("=")
+        ext = ext.strip().lower()
+        if not ext.startswith("."):
+            ext = "." + ext
+        try:
+            fmt = InputFormat(name.strip().lower())
+        except ValueError:
+            fmt = None
+        if not sep or fmt is None:
+            raise UsageError(
+                "--extension-format needs EXT=FORMAT with FORMAT one of " + "|".join(InputFormat),
+                code="invalid_extension_format",
+            )
+        if ext in mapping and mapping[ext] != fmt:
+            raise UsageError(
+                "--extension-format maps the same extension to two formats",
+                code="invalid_extension_format",
+            )
+        mapping[ext] = fmt
+    return mapping
 
 
 def _err(message: str) -> None:
@@ -501,6 +544,7 @@ def inspect_command(
     ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
+    extension_format: ExtFormatOpt = None,
     report: ReportOpt = None,
     report_format: ReportFormatOpt = None,
     environment: EnvOpt = None,
@@ -531,7 +575,7 @@ def inspect_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display, max_files),
+            _runtime(max_bytes, encoding, path_display, max_files, extension_format, fmt),
             quiet,
             verbose,
             force,
@@ -547,6 +591,7 @@ def plan_command(
     ],
     policy: PolicyOpt,
     fmt: FormatOpt = None,
+    extension_format: ExtFormatOpt = None,
     report: ReportOpt = None,
     report_format: ReportFormatOpt = None,
     environment: EnvOpt = None,
@@ -577,7 +622,7 @@ def plan_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display, max_files),
+            _runtime(max_bytes, encoding, path_display, max_files, extension_format, fmt),
             quiet,
             verbose,
             force,
@@ -604,6 +649,7 @@ def sanitize_command(
         bool, typer.Option("--apply", help="Actually write output (else plan).")
     ] = False,
     fmt: FormatOpt = None,
+    extension_format: ExtFormatOpt = None,
     report: ReportOpt = None,
     report_format: ReportFormatOpt = None,
     environment: EnvOpt = None,
@@ -636,7 +682,9 @@ def sanitize_command(
                 "--output - uses stdout for data; write the JSON report with --report PATH",
                 code="stdout_conflict",
             )
-        runtime = _runtime(max_bytes, encoding, path_display)
+        runtime = _runtime(
+            max_bytes, encoding, path_display, extension_formats=extension_format, fmt=fmt
+        )
         _check_report_path(report, [p for p in (input_path, output) if not is_stdio(p)], force)
         loaded = load_policy(policy)
         options = SanitizeOptions(apply=apply, force=force, format=selected_fmt, runtime=runtime)
@@ -689,7 +737,7 @@ def sanitize_command(
             raise UsageError(
                 "a directory INPUT needs --output DIR, not stdout", code="stdout_unsupported"
             )
-        runtime = _runtime(max_bytes, encoding, path_display, max_files)
+        runtime = _runtime(max_bytes, encoding, path_display, max_files, extension_format, fmt)
         _check_batch_report_path(report, [input_path, output], force)
         batch = sanitize_directory(
             input_path,
@@ -731,6 +779,7 @@ def rescan_command(
         ),
     ] = None,
     fmt: FormatOpt = None,
+    extension_format: ExtFormatOpt = None,
     report: ReportOpt = None,
     report_format: ReportFormatOpt = None,
     environment: EnvOpt = None,
@@ -764,7 +813,7 @@ def rescan_command(
             report,
             report_format,
             _context(environment, target_environment, destination, use_case, profile),
-            _runtime(max_bytes, encoding, path_display, max_files),
+            _runtime(max_bytes, encoding, path_display, max_files, extension_format, fmt),
             quiet,
             verbose,
             force,

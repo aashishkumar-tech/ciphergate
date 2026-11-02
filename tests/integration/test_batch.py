@@ -405,3 +405,94 @@ def test_directory_summary_carries_next_steps(tmp_path: Path) -> None:
     (root / "app.log").write_text(SECRET_LINE, encoding="utf-8")
     r = invoke("inspect", root, "--policy", POLICIES / "developer_logs.yml")
     assert r.exit_code == 1 and "next: pass --environment" in r.stdout
+
+
+# --------------------------------------------------------------------------- --extension-format
+
+
+def _mixed(tmp_path: Path) -> Path:
+    root = tmp_path / "in"
+    root.mkdir()
+    (root / "users.dat").write_text("email\nalice@example.com\n", encoding="utf-8")
+    (root / "app.log").write_text(
+        '{"msg": "started", "user": "bob@example.com"}\n', encoding="utf-8"
+    )
+    return root
+
+
+def test_extension_format_adds_an_extension_to_discovery(tmp_path: Path) -> None:
+    root = _mixed(tmp_path)
+    assert [
+        p.as_posix() for p in discover(root, recursive=False, fmt=None, max_files=10).files
+    ] == ["app.log"]
+    mapped = discover(
+        root, recursive=False, fmt=None, max_files=10, extensions={".dat": InputFormat.CSV}
+    )
+    assert [p.as_posix() for p in mapped.files] == ["app.log", "users.dat"] and not mapped.skipped
+
+
+def test_extension_format_sets_each_files_format(tmp_path: Path, env) -> None:
+    root = _mixed(tmp_path)
+    report = tmp_path / "report.json"
+    r = invoke(
+        "inspect", root, *PRD_EXTERNAL, "--report", report,
+        "--extension-format", ".dat=csv", "--extension-format", "LOG=jsonlog",
+        env=env,
+    )  # fmt: skip
+    assert r.exit_code in (0, 1), r.stdout
+    formats = {f["path"]: f["report"]["input"]["format"] for f in _report(report)["files"]}
+    assert formats == {"app.log": "jsonlog", "users.dat": "csv"}
+    assert not _report(report)["skipped"]
+
+
+def test_extension_format_works_for_a_single_file(tmp_path: Path, env) -> None:
+    src = _mixed(tmp_path) / "users.dat"
+    plain = invoke("inspect", src, *PRD_EXTERNAL, env=env)
+    assert plain.exit_code == 2 and "format_required" in plain.stdout + plain.stderr
+    report = tmp_path / "report.json"
+    mapped = invoke(
+        "inspect", src, *PRD_EXTERNAL, "--extension-format", ".dat=csv", "--report", report, env=env
+    )
+    assert mapped.exit_code in (0, 1) and _report(report)["input"]["format"] == "csv"
+
+
+@pytest.mark.parametrize(
+    ("args", "code"),
+    [
+        (["--format", "text", "--extension-format", ".dat=csv"], "format_conflict"),
+        (["--extension-format", ".dat=xml"], "invalid_extension_format"),
+        (["--extension-format", ".dat"], "invalid_extension_format"),
+        (
+            ["--extension-format", ".dat=csv", "--extension-format", ".dat=text"],
+            "invalid_extension_format",
+        ),
+        (["--extension-format", "../x=csv"], "invalid_runtime_setting"),
+    ],
+)
+def test_bad_extension_format_is_a_usage_error(
+    args: list[str], code: str, tmp_path: Path, env
+) -> None:
+    r = invoke("inspect", _mixed(tmp_path), *PRD_EXTERNAL, *args, env=env)
+    assert r.exit_code == 2 and code in r.stdout + r.stderr
+
+
+@pytest.mark.parametrize("command", ["plan", "rescan"])
+def test_extension_format_on_other_commands(command: str, tmp_path: Path, env) -> None:
+    root = _mixed(tmp_path)
+    report = tmp_path / "report.json"
+    invoke(
+        command, root, *PRD_EXTERNAL, "--extension-format", ".dat=csv", "--report", report, env=env
+    )
+    assert [f["path"] for f in _report(report)["files"]] == ["app.log", "users.dat"]
+
+
+def test_sanitize_directory_with_extension_format(tmp_path: Path, env) -> None:
+    root = _mixed(tmp_path)
+    out = tmp_path / "out"
+    r = invoke(
+        "sanitize", root, "--policy", POLICIES / "dev_local.yml", "-o", out, "--apply",
+        "--extension-format", ".dat=csv", env=env,
+    )  # fmt: skip
+    assert r.exit_code == 0, r.stdout
+    assert sorted(p.name for p in out.iterdir()) == ["app.log", "users.dat"]
+    assert "alice@example.com" not in (out / "users.dat").read_text(encoding="utf-8")

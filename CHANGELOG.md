@@ -8,6 +8,10 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ### Added
 
+- `--extension-format EXT=FORMAT` on `inspect`, `plan`, `sanitize` and `rescan` (repeatable) reads
+  files with that extension as FORMAT, for directories and single files. It adds unknown
+  extensions or replaces built-in ones, and cannot be combined with `--format`. The Python API
+  takes `RuntimeSettings(extension_formats=...)`.
 - Tests that run the optional NER detector against a real Presidio install with the
   `en_core_web_sm` model, including a `sanitize` run with network access disabled. They skip
   when Presidio is not installed. A new non-required CI job, `ner`, installs the extra and a
