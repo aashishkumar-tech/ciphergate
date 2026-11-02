@@ -178,6 +178,20 @@ def test_issuer_prefixed_identifier_after_an_id_word_is_ignored(text: str) -> No
     assert PaymentCardDetector().detect(item(text)) == []
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "user paid with 4111 1111 1111 1111",
+        "valid 4111111111111111",
+        "orderly 4111111111111111",
+        "rebuilds 4111111111111111",
+    ],
+)
+def test_id_words_match_whole_words_only(text: str) -> None:
+    # "paid" contains "id": a substring match hid real cards (caught by the leak test).
+    assert PaymentCardDetector().detect(item(text))
+
+
 def test_card_keyword_wins_over_an_id_word() -> None:
     assert PaymentCardDetector().detect(item("order paid by card 4111111111111111"))
 

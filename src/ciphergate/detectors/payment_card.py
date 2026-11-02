@@ -18,11 +18,12 @@ _CVV_RE = re.compile(
     r"(?i)(?<![a-z0-9])(?:cvv2?|cvc2?)(?:\\?[\"'])?\s{0,3}[:=]\s{0,3}(?:\\?[\"'])?(\d{3,4})(?!\d)"
 )
 _KEYWORDS = ("card", "visa", "mastercard", "amex", "pan", "cc", "credit", "debit", "payment")
-# Words that label a number as some other identifier.
-_ID_WORDS = (
-    "id", "invoice", "order", "batch", "total", "trace", "request", "ref", "seq", "sequence",
-    "ticket", "build", "job", "txn", "transaction",
-)  # fmt: skip
+# Words that label a number as some other identifier. Whole words only: a substring match
+# would let "paid" (which contains "id") hide a real card.
+_ID_WORD_RE = re.compile(
+    r"(?i)(?<![a-z])(?:id|invoice|order|batch|total|trace|request|ref|seq|sequence|ticket|"
+    r"build|job|txn|transaction)(?![a-z])"
+)
 
 
 def luhn_valid(digits: str) -> bool:
@@ -88,7 +89,7 @@ class PaymentCardDetector:
             issuer = known_issuer_prefix(digits)
             keyword = preceding_context(text, m.start(), _KEYWORDS, window=32)
             if not keyword and (
-                not issuer or preceding_context(text, m.start(), _ID_WORDS, window=16)
+                not issuer or _ID_WORD_RE.search(text[max(0, m.start() - 16) : m.start()])
             ):
                 continue
             evidence = ["pattern_match", "checksum_valid"]
