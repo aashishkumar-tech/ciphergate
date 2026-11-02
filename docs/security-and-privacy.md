@@ -75,6 +75,21 @@ values are replaced with `<redacted-key>`; control and bidi characters are escap
 Logging uses the standard library and never receives values. `--verbose` lists more items;
 `--debug` adds traceback frame locations for internal errors without exception messages.
 
+## Review page
+
+`ciphergate review` is the only command that puts data into a file other than the output. By
+default the page holds the would-be sanitized output, so it is as sensitive as that output.
+With `--include-input` it also holds the raw input and must be handled like the input; the
+page and the command's stderr both say so. The JSON report never contains either.
+
+The would-be output is written to a `mkstemp` file in the page's directory, rescanned, and
+always removed; it is never published. The page itself uses the same atomic,
+no-overwrite-by-default writer as outputs and refuses the input and policy paths. It contains
+no scripts. A Content-Security-Policy (`default-src 'none'`) and `no-referrer` stop any load
+or request, and every text is HTML-escaped with control and bidi characters shown as escapes.
+Field paths in the decision tables use the same masking as reports. The possible-partial-find
+mark is a heuristic and can miss partial finds or flag whole ones.
+
 ## Files
 
 Inputs must be regular files (FIFOs/devices refused). A directory INPUT starts a batch run:

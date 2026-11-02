@@ -26,7 +26,16 @@ def invoke(*args: str | Path, env: dict[str, str] | None = None):
 def test_version_and_help() -> None:
     r = invoke("--version")
     assert r.exit_code == 0 and __version__ in r.stdout
-    for cmd in ("init", "validate-policy", "inspect", "plan", "sanitize", "rescan", "explain"):
+    for cmd in (
+        "init",
+        "validate-policy",
+        "inspect",
+        "plan",
+        "sanitize",
+        "rescan",
+        "review",
+        "explain",
+    ):
         assert invoke(cmd, "--help").exit_code == 0
 
 

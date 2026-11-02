@@ -52,6 +52,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
   and its source, gates, key *status* (never key material), no raw values or fingerprints.
   A failed run's report lists `next_steps` as `{"code", "message"}` pairs, the same hints the
   terminal prints as `next:` lines, so CI can act on them.
+- **Review page:** `ciphergate review` writes one local HTML file that shows what sanitize
+  would change, record by record, with run metrics. See [Review page](#review-page).
 
 ## Install
 
@@ -197,8 +199,9 @@ healthcare or finance are starting points, **not** HIPAA/PCI controls.
 
 ## Commands and exit codes
 
-`init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `explain`
-(decision for a hypothetical finding — no data needed). All support `--help`.
+`init`, `validate-policy`, `inspect`, `plan`, `sanitize` (needs `--apply`), `rescan`, `review`
+(local HTML page, see below), `explain` (decision for a hypothetical finding — no data
+needed). All support `--help`.
 
 Common options: `--policy`, `--format csv|json|jsonl|text|logfmt|jsonlog|accesslog|syslog|stacktrace`, `--report PATH`,
 `--report-format json|text` (JSON without `--report` prints only JSON on stdout),
@@ -445,6 +448,45 @@ kubectl logs my-pod | ciphergate sanitize - --format text --policy policies/prd_
 | 7 | Strict rescan found gating residual findings (output withheld) |
 | 8 | Unexpected internal error (safe message) |
 | 130 | Interrupted (no output published) |
+
+### Review page
+
+`ciphergate review` runs the same steps as `sanitize --apply`, including the rescan, but writes
+no sanitized file. It writes one HTML page instead:
+
+```bash
+ciphergate review app.log --policy policies/developer_logs.yml   --environment dev --destination local_dev -o build/review.html
+```
+
+Open the file in a browser. It shows:
+
+- **How the run went:** findings, how many are transformed, kept by an `allow` rule, need
+  review or are blocked (with percentages), records with findings, values changed, records
+  dropped, rescan results, and possible partial finds.
+- **Breakdown:** what happened to each category, plus counts by action, rule, reason code,
+  detector and confidence band.
+- **Records:** each record with findings, as the output would contain it. Changed parts are
+  highlighted, and hovering over one shows its category, action, rule and reason code. Values
+  kept by an `allow` rule are underlined. A dashed outline marks a *possible partial find*: a
+  replaced name or address next to a capitalised word that stayed. This is a hint, not a check.
+
+What the page contains, and how to handle it:
+
+- By default it contains the would-be **output**, not the input. Treat it like the sanitized
+  file: detectors can miss values.
+- `--include-input` also adds the **raw input** next to the output, with a warning banner. A
+  page made with it must be handled like the original file. Do not share, upload or commit it.
+- If the run is blocked, needs review or a key is missing, there is no output preview. The page
+  shows the plan and the decisions for each record. Planned transforms are labelled as not run.
+- There are no default locations: `-o` is required. `build/` is in `.gitignore`. The page is not
+  overwritten without `--force`, can't be the input or the policy file, and is written
+  atomically (0600 on POSIX). Directories and stdin/stdout are not supported.
+- The page has no scripts and a Content-Security-Policy that blocks all loads, so opening it
+  makes no network request. All text is escaped.
+- The exit code is the plan's: 0 ready, 1 blocked/review, 6 key/config, 7 rescan found gating
+  findings. Use `sanitize` and `rescan` as the CI gate. Up to 500 records are shown, each cut
+  to 4,000 characters; the counts include all records. It takes a little longer than
+  `sanitize` (about 15% on a 40,000-line synthetic log).
 
 ### Troubleshooting
 

@@ -56,6 +56,7 @@ from ciphergate.pipeline.batch import (
     sanitize_directory,
 )
 from ciphergate.pipeline.paths import validate_output_path
+from ciphergate.pipeline.review import ReviewOptions, review_file
 from ciphergate.pipeline.sanitizer import (
     SanitizeOptions,
     inspect_file,
@@ -821,6 +822,86 @@ def rescan_command(
             recursive=recursive,
         ),
     )
+
+
+@app.command("review")
+def review_command(
+    input_path: Annotated[Path, typer.Argument(metavar="INPUT", help="File to review.")],
+    policy: PolicyOpt,
+    output: Annotated[
+        Path,
+        typer.Option("--output", "-o", help="HTML page to write, e.g. build/review.html."),
+    ],
+    include_input: Annotated[
+        bool,
+        typer.Option(
+            "--include-input",
+            help="Also put the RAW input on the page; handle the page like the input.",
+        ),
+    ] = False,
+    fmt: FormatOpt = None,
+    extension_format: ExtFormatOpt = None,
+    environment: EnvOpt = None,
+    target_environment: TargetOpt = None,
+    destination: DestOpt = None,
+    use_case: UseCaseOpt = None,
+    profile: ProfileOpt = None,
+    max_bytes: MaxBytesOpt = None,
+    encoding: EncodingOpt = None,
+    path_display: PathDisplayOpt = None,
+    force: ForceOpt = False,
+    quiet: QuietOpt = False,
+    verbose: VerboseOpt = False,
+    no_color: NoColorOpt = False,
+    debug: DebugOpt = False,
+) -> None:
+    """Write a local HTML page showing what sanitize would change, with run metrics.
+
+    Writes no sanitized file. The page holds the would-be output; with --include-input it also
+    holds the raw input. The exit code is the plan's (1 blocked/review, 6 key, 7 rescan).
+    """
+    _configure_logging(verbose, debug)
+
+    def body() -> int:
+        if is_stdio(input_path) or is_stdio(output):
+            raise UsageError(
+                "review needs a file INPUT and an --output file", code="stdio_unsupported"
+            )
+        if _is_directory_input(input_path):
+            raise UsageError("review takes a single file, not a directory", code="review_directory")
+        runtime = _runtime(
+            max_bytes, encoding, path_display, extension_formats=extension_format, fmt=fmt
+        )
+        options = ReviewOptions(
+            force=force,
+            include_input=include_input,
+            format=fmt,
+            runtime=runtime,
+            protected=(policy,),
+        )
+        data = review_file(
+            input_path,
+            output,
+            load_policy(policy),
+            _context(environment, target_environment, destination, use_case, profile),
+            options,
+        )
+        code = _emit(
+            data.report,
+            report_path=None,
+            report_format=None,
+            quiet=quiet,
+            verbose=verbose,
+            force=force,
+        )
+        held = "the would-be output" if data.has_output else "the plan only"
+        if include_input:
+            held += " and the RAW INPUT; handle it like the input file"
+        sys.stdout.flush()
+        sys.stderr.write(f"review page written: {escape_control(str(output))} ({held})\n")
+        return code
+
+    _guard(debug, body)
 
 
 @app.command("explain")

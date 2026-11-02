@@ -39,15 +39,22 @@ _PROBES = (EmailDetector(), SecretDetector(), PaymentCardDetector(), IPAddressDe
 _PHONE = PhoneDetector()
 
 
-def escape_control(text: str) -> str:
+def escape_invisible(text: str, *, keep_tabs: bool = False) -> str:
+    """Escape control and invisible characters without shortening the text."""
     out: list[str] = []
     for ch in text:
         code = ord(ch)
-        if code < 0x20 or code == 0x7F or 0x80 <= code < 0xA0 or ch in _INVISIBLE:
+        if keep_tabs and ch == "\t":
+            out.append(ch)
+        elif code < 0x20 or code == 0x7F or 0x80 <= code < 0xA0 or ch in _INVISIBLE:
             out.append(f"\\x{code:02x}" if code < 0x100 else f"\\u{code:04x}")
         else:
             out.append(ch)
-    result = "".join(out)
+    return "".join(out)
+
+
+def escape_control(text: str) -> str:
+    result = escape_invisible(text)
     return result if len(result) <= MAX_DISPLAY else result[: MAX_DISPLAY - 3] + "..."
 
 
