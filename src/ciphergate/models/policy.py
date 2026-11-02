@@ -30,6 +30,12 @@ CATEGORY_SELECTOR_RE = re.compile(r"^(\*|[a-z][a-z0-9_]*\.\*|[a-z][a-z0-9_]*\.[a
 ENV_VAR_RE = r"^[A-Z_][A-Z0-9_]{0,127}$"
 MARKER_RE = re.compile(r"^\[[A-Z][A-Z0-9_]{0,31}(?::(?:\{category\}|[a-z0-9_.]{1,48}))?\]$")
 PREFIX_RE = r"^([a-z][a-z0-9_]{0,31})?$"
+# A shipped pack name, or a relative .yml/.yaml path without "..", absolute or drive parts.
+EXTENDS_RE = (
+    r"^(?:[a-z0-9][a-z0-9_.-]{0,63}"
+    r"|(?:\./)?(?:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}/){0,8}[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}\.ya?ml)$"
+)
+_EXTENDS = re.compile(EXTENDS_RE)
 RELAXES_RE = r"^([a-z0-9][a-z0-9_.-]{0,63}|defaults:[a-z0-9_.*]{1,64})$"
 
 Slug = Annotated[str, Field(pattern=SLUG_RE)]
@@ -386,8 +392,8 @@ class Transfer(StrictModel):
 class PolicyDocument(StrictModel):
     policy_version: Literal[1]
     name: Slug
-    # Shipped packs this policy builds on, by name only (never a path); see policy/layers.py.
-    extends: Annotated[list[Slug], Field(max_length=4)] = Field(default_factory=list)
+    # Shipped packs by name, or local files by relative path; see policy/layers.py.
+    extends: Annotated[list[str], Field(max_length=4)] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     context: PolicyContext = Field(default_factory=PolicyContext)
     requirements: Requirements = Field(default_factory=Requirements)
@@ -398,6 +404,17 @@ class PolicyDocument(StrictModel):
     rules: list[Rule] = Field(default_factory=list)
     defaults: dict[str, DefaultAction] = Field(default_factory=dict)
     transfers: list[Transfer] = Field(default_factory=list)
+
+    @field_validator("extends")
+    @classmethod
+    def _extends(cls, value: list[str]) -> list[str]:
+        for ref in value:
+            if not _EXTENDS.match(ref):
+                raise ValueError(
+                    "each entry must be a shipped pack name or a relative .yml/.yaml path inside "
+                    "the policy's directory (no '..', absolute paths, drive letters or backslashes)"
+                )
+        return value
 
     @field_validator("policy_version", mode="before")
     @classmethod

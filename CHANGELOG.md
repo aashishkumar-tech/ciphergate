@@ -6,6 +6,16 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- `extends` accepts local files as well as shipped packs, for example
+  `extends: ["org/base.yml"]`, so an organisation can share one layer across sites. Paths
+  resolve against the file that names them and must stay inside the top-level policy's
+  directory. Absolute paths, `..`, backslashes and symlinked files are rejected. Packs and
+  inline policies cannot extend local files, layer names must be distinct, and cycles are
+  rejected. Reports list local layers with kind `file`, their relative path (hidden with
+  `--path-display redacted`) and their digest.
+
 ## [0.17.0] - 2026-11-02
 
 Policies can now be built in layers. A shipped baseline pack, a jurisdiction pack (US, EU or

@@ -1,8 +1,12 @@
-"""Policy layering: ``extends: [pack, ...]`` builds one effective policy from shipped packs.
+"""Policy layering: ``extends: [...]`` builds one effective policy from packs and local files.
 
-A policy may name shipped packs (``policies/packs/<name>.yml``) by name only; names are compared
-to the packs that exist and are never used as paths. Packs may extend other packs. Layers are
-ordered base first, the extending policy last; a pack reached twice is used once.
+An ``extends`` entry is either a shipped pack name (``policies/packs/<name>.yml``; compared to the
+packs that exist, never used as a path) or a relative ``.yml``/``.yaml`` path to a local layer.
+A local path resolves against the directory of the file that names it and must stay inside the
+top-level policy's directory: no absolute paths or ``..`` (rejected by the schema), no symlinked
+files, regular files only, the usual policy size limit. Packs and inline policies cannot extend
+local files. Layers are ordered base first, the extending policy last; a layer reached twice is
+used once, and layer names must be distinct.
 
 Merging never lets a later layer quietly weaken an earlier one:
 
@@ -27,8 +31,10 @@ it.
 from __future__ import annotations
 
 import hashlib
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
@@ -36,7 +42,12 @@ from pydantic import ValidationError
 from ciphergate.constants import HIGH_RISK_CATEGORIES, Action
 from ciphergate.errors import PolicyValidationError, ValidationIssue
 from ciphergate.models.policy import PolicyDocument, Rule
-from ciphergate.policy.loader import bundled_policies_dir, parse_policy_yaml, policy_digest
+from ciphergate.policy.loader import (
+    bundled_policies_dir,
+    parse_policy_yaml,
+    policy_digest,
+    read_policy_bytes,
+)
 from ciphergate.policy.precedence import (
     category_selectors_overlap,
     matches_may_overlap,
@@ -64,7 +75,7 @@ class PolicyLayer:
     """One layer of an effective policy; safe to report (names and digests only)."""
 
     name: str
-    kind: str  # "pack" or "policy"
+    kind: str  # "pack", "file" (a local layer) or "policy" (the top-level file)
     source: str | None
     digest: str
 
@@ -125,13 +136,56 @@ def _schema(raw: dict[str, Any], prefix: str) -> PolicyDocument:
         ) from None
 
 
+def is_local_ref(ref: str) -> bool:
+    """``extends`` entries with a slash or a YAML suffix name local files; others name packs."""
+    return "/" in ref or ref.endswith((".yml", ".yaml"))
+
+
+def _fail(message: str, detail: str, code: str) -> PolicyValidationError:
+    return PolicyValidationError(
+        message, issues=[ValidationIssue("extends", detail, code)], code=code
+    )
+
+
+def _local_file(ref: str, here: Path | None, root: Path | None) -> tuple[Path, str]:
+    """Resolve a local ``extends`` entry; returns the real path and its path relative to root.
+
+    Paths resolve against the directory of the file that names them and must stay inside the
+    top-level policy's directory; symlinked files and anything that is not a regular file are
+    rejected. Error messages repeat only the reference as written in the policy.
+    """
+    if here is None or root is None:
+        raise _fail(
+            "local files can only be extended from a policy file",
+            f"'{ref}': packs and inline policies cannot extend local files",
+            "local_extends_unavailable",
+        )
+    candidate = here / ref
+    try:
+        if candidate.is_symlink():
+            raise _fail("policy layer is a symlink", f"'{ref}' is a symlink", "unsafe_extends_path")
+        real = candidate.resolve(strict=True)
+    except OSError as exc:
+        raise _fail("policy layer not found", f"'{ref}' not found", "policy_not_found") from exc
+    if not real.is_relative_to(root):
+        raise _fail(
+            "policy layer is outside the policy's directory",
+            f"'{ref}' resolves outside the top-level policy's directory",
+            "unsafe_extends_path",
+        )
+    return real, real.relative_to(root).as_posix()
+
+
 def _collect(
     doc: PolicyDocument,
     out: list[_Loaded],
     seen: set[str],
     stack: tuple[str, ...],
+    *,
+    here: Path | None,
+    root: Path | None,
 ) -> None:
-    if len(stack) > MAX_LAYER_DEPTH:
+    if len(stack) > MAX_LAYER_DEPTH + 1:  # the stack starts with the top-level policy
         raise PolicyValidationError(
             "policy layers nest too deeply",
             issues=[
@@ -139,22 +193,33 @@ def _collect(
             ],
             code="policy_layer_depth",
         )
-    for name in doc.extends:
-        if name in stack:
-            raise PolicyValidationError(
-                "policy packs extend each other in a cycle",
-                issues=[ValidationIssue("extends", f"cycle through pack '{name}'", "layer_cycle")],
-                code="policy_layer_cycle",
+    for ref in doc.extends:
+        real: Path | None = None
+        if is_local_ref(ref):
+            real, source = _local_file(ref, here, root)
+            key, prefix = "file:" + os.path.normcase(str(real)), f"file[{source}]."
+        else:
+            source = f"{PACKS_DIR}/{ref}.yml"
+            key, prefix = f"pack:{ref}", f"pack[{ref}]."
+        if key in stack:
+            raise _fail(
+                "policy layers extend each other in a cycle",
+                f"cycle through '{ref}'",
+                "layer_cycle",
             )
-        if name in seen:
+        if key in seen:
             continue
-        data = read_pack_bytes(name)
-        pack = _schema(parse_policy_yaml(data), f"pack[{name}].")
-        pack_layer = PolicyLayer(name, "pack", f"{PACKS_DIR}/{name}.yml", policy_digest(data))
-        _collect(pack, out, seen, (*stack, name))
-        if name not in seen:
-            seen.add(name)
-            out.append(_Loaded(pack_layer, pack))
+        data = read_policy_bytes(real) if real is not None else read_pack_bytes(ref)
+        layer_doc = _schema(parse_policy_yaml(data), prefix)
+        if real is not None:
+            layer = PolicyLayer(layer_doc.name, "file", source, policy_digest(data))
+        else:
+            layer = PolicyLayer(ref, "pack", source, policy_digest(data))
+        next_here = real.parent if real is not None else None
+        _collect(layer_doc, out, seen, (*stack, key), here=next_here, root=root)
+        if key not in seen:
+            seen.add(key)
+            out.append(_Loaded(layer, layer_doc))
     if len(out) >= MAX_LAYERS:
         raise PolicyValidationError(
             "too many policy layers",
@@ -481,15 +546,37 @@ class _Merger:
 
 
 def _digest(layers: list[PolicyLayer]) -> str:
-    text = "\n".join([LAYER_DIGEST_VERSION, *(f"{x.kind}:{x.name}={x.digest}" for x in layers)])
+    ids = (f"{x.kind}:{x.source if x.kind == 'file' else x.name}={x.digest}" for x in layers)
+    text = "\n".join([LAYER_DIGEST_VERSION, *ids])
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def resolve_layers(doc: PolicyDocument, *, digest: str, source_name: str | None) -> LayeredDocument:
-    """Merge ``doc`` with the packs it extends. Raises ``PolicyValidationError``."""
+def resolve_layers(
+    doc: PolicyDocument,
+    *,
+    digest: str,
+    source_name: str | None,
+    path: Path | None = None,
+) -> LayeredDocument:
+    """Merge ``doc`` with the packs and local files it extends. Raises ``PolicyValidationError``.
+
+    ``path`` is the top-level policy file; without it (inline text, templates) only packs can be
+    extended.
+    """
     loaded: list[_Loaded] = []
-    _collect(doc, loaded, set(), ())
+    top = path.resolve() if path is not None else None
+    root = top.parent if top is not None else None
+    start = ("file:" + os.path.normcase(str(top)),) if top is not None else ("policy",)
+    _collect(doc, loaded, set(), start, here=root, root=root)
     loaded.append(_Loaded(PolicyLayer(doc.name, "policy", source_name, digest), doc))
+    names = [x.layer.name for x in loaded]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        raise _fail(
+            "policy layers must have distinct names",
+            "layers share the name(s): " + ", ".join(duplicates),
+            "duplicate_layer_name",
+        )
     merger = _Merger(loaded)
     merged, rule_layers, default_layers = merger.merge()
     if merger.issues:

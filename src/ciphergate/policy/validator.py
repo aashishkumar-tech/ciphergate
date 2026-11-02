@@ -266,7 +266,14 @@ def _selector_can_cover(selectors: list[str] | None, categories: frozenset[str])
     return {c for c in categories if any(category_selector_matches(s, c) for s in selectors)}
 
 
-def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None = None) -> Policy:
+def compile_policy(
+    raw: dict[str, Any],
+    *,
+    digest: str,
+    source_name: str | None = None,
+    path: Path | None = None,
+) -> Policy:
+    """Validate and compile a parsed policy. ``path`` (the policy file) enables local extends."""
     try:
         doc = PolicyDocument.model_validate(raw)
     except ValidationError as exc:
@@ -282,7 +289,7 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
     rule_layers: dict[str, str] = {}
     default_layers: dict[str, str] = {}
     if doc.extends:
-        layered = resolve_layers(doc, digest=digest, source_name=source_name)
+        layered = resolve_layers(doc, digest=digest, source_name=source_name, path=path)
         doc, digest, layers = layered.document, layered.digest, layered.layers
         rule_layers, default_layers = layered.rule_layers, layered.default_layers
         warnings.extend(layered.warnings)
@@ -686,7 +693,9 @@ def load_policy(path: str | Path) -> Policy:
     """Load, schema-validate and compile a policy file. Raises ``PolicyValidationError``."""
     data = read_policy_bytes(path)
     raw = parse_policy_yaml(data)
-    return compile_policy(raw, digest=policy_digest(data), source_name=Path(path).name)
+    return compile_policy(
+        raw, digest=policy_digest(data), source_name=Path(path).name, path=Path(path)
+    )
 
 
 def load_policy_text(text: str, *, source_name: str | None = None) -> Policy:
