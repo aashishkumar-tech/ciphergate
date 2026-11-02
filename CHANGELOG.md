@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-02
+
+Adds `--extension-format` for mixed directories and tests the optional NER detector against a
+real Presidio install. No existing behaviour changes.
+
 ### Added
 
 - `--extension-format EXT=FORMAT` on `inspect`, `plan`, `sanitize` and `rescan` (repeatable) reads
@@ -374,7 +379,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.10.0...v0.11.0
