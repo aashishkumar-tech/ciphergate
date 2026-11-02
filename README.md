@@ -50,6 +50,8 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
   `--force`, input/output alias protection, input-change detection, cleanup on failure/Ctrl-C.
 - **Reports:** counts by category/detector/action/reason/rule, safe locations, effective context
   and its source, gates, key *status* (never key material), no raw values or fingerprints.
+  A failed run's report lists `next_steps` as `{"code", "message"}` pairs, the same hints the
+  terminal prints as `next:` lines, so CI can act on them.
 
 ## Install
 

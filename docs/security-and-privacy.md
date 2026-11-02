@@ -67,7 +67,8 @@ Reports contain: run ID, UTC time, version, input basename (or `<redacted>`), fo
 record counts, policy name/version/SHA-256 digest of the policy file, effective context with
 sources, gates, counts by category/detector/action/band/reason/rule, safe locations (record,
 line, field path, character span), rule IDs and reason codes, key status, changes, parse error
-line numbers and codes, rescan summary, warnings and a disclaimer. They never contain values,
+line numbers and codes, rescan summary, warnings, `next_steps` (fixed hint text with a reason
+code, for failed runs only) and a disclaimer. They never contain values,
 snippets, keys, mappings, or hashes of values. Field paths whose segments look like sensitive
 values are replaced with `<redacted-key>`; control and bidi characters are escaped.
 

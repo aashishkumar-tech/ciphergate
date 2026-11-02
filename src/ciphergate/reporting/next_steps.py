@@ -83,7 +83,12 @@ _KEY_HINT = (
 
 
 def next_steps(report: dict[str, Any]) -> list[str]:
-    """Hints for a run that ended with a non-zero exit code; empty otherwise."""
+    """Hint messages for a run that ended with a non-zero exit code; empty otherwise."""
+    return [step["message"] for step in next_step_items(report)]
+
+
+def next_step_items(report: dict[str, Any]) -> list[dict[str, str]]:
+    """``{"code", "message"}`` pairs for a failed run; ``code`` is a stable reason code."""
     if not report.get("exit_code"):
         return []
     codes = [gate["reason_code"] for gate in report.get("gates", [])]
@@ -93,14 +98,28 @@ def next_steps(report: dict[str, Any]) -> list[str]:
     rescan = report.get("rescan")
     if rescan and rescan.get("failed"):
         codes.append(ReasonCode.RESIDUAL_FINDING)
-    hints: list[str] = []
+    items: list[dict[str, str]] = []
     for code in codes:
         hint = _HINTS.get(code)
-        if hint and hint not in hints:
-            hints.append(hint)
+        if hint:
+            _add(items, str(code), hint)
     for key in report.get("keys", []):
-        if key.get("status") != "available":
-            hint = _KEY_HINT.format(env=key["key_env"])
-            if hint not in hints:
-                hints.append(hint)
-    return hints
+        status = key.get("status")
+        if status != "available":
+            code = ReasonCode.KEY_MISSING if status == "missing" else ReasonCode.KEY_INVALID
+            _add(items, str(code), _KEY_HINT.format(env=key["key_env"]))
+    return items
+
+
+def merge_next_steps(reports: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Combine the hints of several reports (a directory run), first occurrence first."""
+    items: list[dict[str, str]] = []
+    for report in reports:
+        for step in report.get("next_steps") or next_step_items(report):
+            _add(items, step["code"], step["message"])
+    return items
+
+
+def _add(items: list[dict[str, str]], code: str, message: str) -> None:
+    if all(step["message"] != message for step in items):
+        items.append({"code": code, "message": message})

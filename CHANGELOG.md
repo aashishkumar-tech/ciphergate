@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- JSON reports (single-file and directory) include `next_steps`: the hints from the terminal
+  summary as `{"code", "message"}` pairs, empty for a successful run. The field is new and
+  optional to read; the schema names are unchanged.
+
 ### Fixed
 
 - The `batch_empty` error for a directory with no recognised files now mentions
