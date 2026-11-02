@@ -211,6 +211,10 @@ ciphergate validate-policy my-hospital.yml
 #   layers: healthcare_baseline -> us_hipaa -> hospital-us-override
 ```
 
+Your own layers can be local files too: `extends: ["org/base.yml"]` resolves relative to the
+policy and must stay inside its directory (no `..`, absolute paths or symlinked files), so an
+organisation can keep one shared layer and a small file per site.
+
 A later layer can add context, detectors, classifications and stricter rules. It cannot quietly
 weaken an earlier one: a weaker setting, a disabled detector or a rule that would override a
 block, review or redaction with something weaker fails validation unless the rule names what it

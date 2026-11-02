@@ -23,9 +23,9 @@ def utc_now() -> str:
 
 
 def layer_report(layer: PolicyLayer, path_mode: str) -> dict[str, Any]:
-    """Shipped packs keep their name; the user's own file follows the path display setting."""
+    """Shipped packs keep their source; the user's own files follow the path display setting."""
     data = layer.to_dict()
-    if layer.kind == "policy" and path_mode == "redacted":
+    if layer.kind in ("policy", "file") and path_mode == "redacted":
         data["source"] = None
     return data
 

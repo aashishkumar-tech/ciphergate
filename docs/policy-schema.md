@@ -10,7 +10,7 @@ Validate with `ciphergate validate-policy FILE` (never reads data).
 |---|---|---|---|
 | `policy_version` | `1` | required | other versions rejected |
 | `name` | slug `[a-z0-9][a-z0-9_.-]{0,63}` | required | also the default pseudonym namespace |
-| `extends` | list of shipped pack names (max 4) | `[]` | build on [policy packs](#layering-extends) |
+| `extends` | list of shipped pack names or relative `.yml`/`.yaml` paths (max 4) | `[]` | build on [packs and local layers](#layering-extends) |
 | `metadata` | mapping | `{}` | free-form extension namespace; not interpreted |
 | `context` | [Context](#context) | all unset | pinned context |
 | `requirements` | `{environment, target_environment, destination}` booleans | `true, false, true` | which context must be present (a run without a destination is still treated as untrusted; turning the requirement off warns) |
@@ -209,9 +209,30 @@ hospital_us_override`). A policy may extend several jurisdiction packs at once (
 `extends: [us_hipaa, eu_gdpr, india_dpdp]` for a hospital group); the strictest combination
 applies.
 
-**Resolution.** Names are compared to the shipped packs and never used as paths; local files
-cannot be extended in this release. Packs may extend packs (at most 4 levels, 8 layers; cycles
-are rejected). Layers are ordered base first, your policy last; a pack reached twice is used once.
+**Local layers.** An entry containing `/` or ending in `.yml`/`.yaml` is a local file, for
+example an organisation-wide layer shared by several hospitals:
+
+```text
+policies/
+├── org/base.yml        # extends: [us_hipaa]        -> your organisation's additions
+└── hospital-a.yml      # extends: ["org/base.yml"]  -> one site's differences
+```
+
+* The path resolves against the directory of the file that names it, and must stay inside the
+  **top-level policy's directory** (subdirectories are fine). Absolute paths, drive letters,
+  backslashes and `..` segments are rejected by the schema; a path that still resolves outside
+  (for example through a symlinked directory) fails with `unsafe_extends_path`.
+* Symlinked files are rejected; the target must be a regular file within the usual 1 MiB policy
+  limit, loaded with the same safe YAML loader.
+* Only a policy loaded from a file can extend local files. Shipped packs, templates and inline
+  policies (`load_policy_text`) cannot (`local_extends_unavailable`).
+* Layer names (each file's `name:`) must be distinct across the chain (`duplicate_layer_name`).
+* Reports show local layers with kind `file` and their path relative to the top-level policy's
+  directory; `--path-display redacted` hides it. Changing a local layer changes the digest.
+
+**Resolution.** Pack names are compared to the shipped packs and never used as paths. Layers may
+extend layers (at most 4 levels, 8 layers; cycles, including a file extending itself, are
+rejected). Layers are ordered base first, your policy last; a layer reached twice is used once.
 Every check in this document then runs on the merged policy.
 
 **Merge rules — a later layer can never quietly weaken an earlier one:**

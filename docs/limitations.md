@@ -19,7 +19,11 @@
 
 ## Policy layering
 
-- `extends` names shipped packs only; a policy cannot extend a local file in this release.
+- Local layers must sit inside the top-level policy's directory; a layer shared from elsewhere
+  (`../shared/base.yml`, another repository) has to be copied in. A policy can extend at most
+  4 entries, nested at most 4 levels, 8 layers in total.
+- Local layers are read once when the policy is loaded; a file changed during a run is not
+  re-read (the digest in the report identifies what was used).
 - The weakening check compares rule selectors statically and conservatively: it can reject a
   rule that would never actually override the earlier one (narrow the selectors or use
   `relaxes`), and it cannot see differences that depend on detector behaviour.

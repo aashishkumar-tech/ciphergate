@@ -33,7 +33,7 @@ Report (reporting/)            privacy-safe JSON / text summary
 | `readers/` | Parse and write each format; limits; encodings; JSON Pointer paths | decide actions |
 | `detectors/` | Produce candidate findings; per-run `DetectorSet` (no global registry) | decide actions |
 | `policy/loader.py` | Safe YAML (no tags, no aliases, no duplicate keys, size limit) | execute code |
-| `policy/layers.py` | Resolve `extends` (shipped packs by name), merge layers, reject weakening | read local files by name |
+| `policy/layers.py` | Resolve `extends` (shipped packs by name, local files inside the policy's directory), merge layers, reject weakening | use a pack name as a path, follow symlinked layer files or leave the policy's directory |
 | `policy/validator.py` | Schema + semantic checks, compile into immutable `Policy` | — |
 | `policy/precedence.py` | Computed precedence levels and static overlap analysis | — |
 | `policy/context.py` | Pinned vs caller context, run-level gates | infer one context dimension from another |
