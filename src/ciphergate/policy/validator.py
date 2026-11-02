@@ -15,7 +15,9 @@ Semantic checks (all errors are reported together, with safe messages):
 * untrusted pinned destinations and transfer approvals require ``strict`` and the rescan gate;
   untrusted pinned destinations also require ``scan_json_keys``;
 * credential detectors cannot be disabled in strict/untrusted/transfer policies;
-* ``rescan.fail_on_categories`` cannot be empty (``credential.secret`` is always gating).
+* ``rescan.fail_on_categories`` cannot be empty (``credential.secret`` is always gating);
+* ``extends`` is resolved first (``ciphergate.policy.layers``); every check above then runs on
+  the merged policy, and ``relaxes`` is only valid in a layered policy.
 """
 
 from __future__ import annotations
@@ -59,6 +61,7 @@ from ciphergate.models.policy import (
     ReplaceParams,
     Rule,
 )
+from ciphergate.policy.layers import PolicyLayer, resolve_layers
 from ciphergate.policy.loader import parse_policy_yaml, policy_digest, read_policy_bytes
 from ciphergate.policy.precedence import (
     LEVEL_GUARDRAIL,
@@ -81,6 +84,7 @@ class CompiledRule:
     params: ActionParams
     field_names: frozenset[str] | None
     field_regex: re.Pattern[str] | None
+    layer: str | None = None  # the layer that declared the rule, for layered policies
 
     @property
     def id(self) -> str:
@@ -134,6 +138,7 @@ class CompiledDefault:
     params: ActionParams
     reason: str | None
     specificity: int  # 0 exact, 1 prefix glob, 2 "*"
+    layer: str | None = None
 
 
 @dataclass(frozen=True)
@@ -151,6 +156,8 @@ class Policy:
     replacement_values: frozenset[str] = field(default_factory=frozenset)
     # Built-in high-risk categories plus custom categories in a high-risk family.
     high_risk: frozenset[str] = HIGH_RISK_CATEGORIES
+    # Packs and the extending policy, base first; empty for a single-file policy.
+    layers: tuple[PolicyLayer, ...] = ()
 
     @property
     def name(self) -> str:
@@ -271,6 +278,24 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
 
     issues: list[ValidationIssue] = []
     warnings: list[str] = []
+    layers: tuple[PolicyLayer, ...] = ()
+    rule_layers: dict[str, str] = {}
+    default_layers: dict[str, str] = {}
+    if doc.extends:
+        layered = resolve_layers(doc, digest=digest, source_name=source_name)
+        doc, digest, layers = layered.document, layered.digest, layered.layers
+        rule_layers, default_layers = layered.rule_layers, layered.default_layers
+        warnings.extend(layered.warnings)
+    else:
+        for i, rule in enumerate(doc.rules):
+            if rule.relaxes:
+                issues.append(
+                    ValidationIssue(
+                        f"rules[{i}].relaxes",
+                        "relaxes is only valid in a policy that uses extends",
+                        "unknown_relaxes",
+                    )
+                )
 
     # --- categories
     for i, cat in enumerate(doc.custom_categories):
@@ -480,6 +505,7 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
                         else None
                     ),
                     field_regex=field_regex,
+                    layer=rule_layers.get(rule.id),
                 )
             )
 
@@ -549,7 +575,11 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
             replacement_values.add(str(params.value))
         if params is not None:
             specificity = 2 if sel == "*" else (1 if sel.endswith(".*") else 0)
-            defaults.append(CompiledDefault(sel, spec.action, params, spec.reason, specificity))
+            defaults.append(
+                CompiledDefault(
+                    sel, spec.action, params, spec.reason, specificity, default_layers.get(sel)
+                )
+            )
     defaults.sort(key=lambda d: (d.specificity, -len(d.selector)))
 
     # --- rescan / strictness / transfers
@@ -648,6 +678,7 @@ def compile_policy(raw: dict[str, Any], *, digest: str, source_name: str | None 
         required_keys=frozenset(required_keys),
         replacement_values=frozenset(replacement_values),
         high_risk=frozenset(high_risk),
+        layers=layers,
     )
 
 

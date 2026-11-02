@@ -1,0 +1,46 @@
+# TEMPLATE REQUIRING REVIEW. Example of the third policy layer: one hospital's own small file on
+# top of the shipped packs (healthcare_baseline -> us_hipaa -> this file). Replace the synthetic
+# formats and field names below with your own. Using it does NOT perform HIPAA Safe Harbor or
+# Expert Determination and is not legal or compliance advice.
+#
+# A layer like this can add context, detectors, classifications and stricter rules. It cannot
+# quietly weaken the packs: a weaker setting or a rule that would override a pack's block,
+# review or redaction with something weaker fails validation unless it names that rule (or
+# default) in `relaxes`, which is then printed as a warning and recorded in every report.
+policy_version: 1
+name: hospital-us-override
+extends: [us_hipaa]
+metadata:
+  description: "Example hospital layer for PRD logs going to an external AI assistant. Template requiring review."
+context:
+  environment: prd
+  target_environment: external
+  destination: external_ai
+  use_case: debugging
+requirements:
+  target_environment: true
+detectors:
+  custom:
+    # Synthetic local record-number format; replace with the hospital's real format.
+    - id: hospital-record-number
+      category: pii.customer_identifier
+      pattern: '\bHRN-[0-9]{8}\b'
+      confidence: 0.9
+classifications:
+  - id: hospital-local-ids
+    field_names: [visit_number, encounter_id, bed_assignment, wristband_id]
+    category: pii.customer_identifier
+  - id: hospital-state
+    field_names: [state, state_code]
+    category: location.coarse
+rules:
+  # Safe Harbor keeps the state; the baseline redacts all locations by default, so keeping it
+  # is a deliberate, recorded relaxation.
+  - id: hospital-keep-state
+    priority: 300
+    match:
+      categories: [location.coarse]
+      field_names: [state, state_code]
+    action: allow
+    relaxes: ["defaults:location.*"]
+    reason: state_is_kept_for_regional_debugging

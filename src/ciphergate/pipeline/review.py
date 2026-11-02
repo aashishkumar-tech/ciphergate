@@ -379,14 +379,21 @@ class _Collector:
             "detector": finding.detector,
             "band": finding.band,
             "action": str(decision.action),
-            "rule_id": decision.rule_id,
+            "rule_id": _rule_name(decision),
             "reason_code": str(decision.reason_code),
             "field_path": ("<redacted>" if self.redact else safe_field_path(path)) if path else "",
         }
 
 
+def _rule_name(decision: Any) -> str | None:
+    """The rule id, with the layer that declared it for layered policies."""
+    if decision.rule_id and decision.layer:
+        return f"{decision.rule_id} ({decision.layer})"
+    return decision.rule_id  # type: ignore[no-any-return]
+
+
 def _label(finding: Any, decision: Any) -> str:
-    rule = decision.rule_id or "engine default"
+    rule = _rule_name(decision) or "engine default"
     return f"{finding.category} · {decision.action} · {rule} · {decision.reason_code}"
 
 

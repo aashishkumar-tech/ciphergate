@@ -55,6 +55,7 @@ class Decision:
     params: ActionParams = field(default_factory=EmptyParams)
     matched_on: tuple[str, ...] = ()
     overridden_rule_id: str | None = None
+    layer: str | None = None  # layer that declared the deciding rule/default (layered policies)
 
     @property
     def requires_review(self) -> bool:
@@ -71,6 +72,8 @@ class Decision:
             "precedence": self.level_name,
             "rule_id": self.rule_id,
         }
+        if self.layer:
+            data["layer"] = self.layer
         if self.rule_reason:
             data["rule_reason"] = self.rule_reason
         if self.matched_on:
@@ -130,6 +133,7 @@ class PolicyEngine:
                 rule_reason=chosen.rule.reason,
                 params=chosen.params,
                 matched_on=chosen.selectors(),
+                layer=chosen.layer,
             )
         default = self.policy.default_for(finding.category)
         if default is not None:
@@ -140,6 +144,7 @@ class PolicyEngine:
                 rule_id=f"defaults:{default.selector}",
                 rule_reason=default.reason,
                 params=default.params,
+                layer=default.layer,
             )
         behavior = Action(self.policy.document.settings.unknown_sensitive_behavior)
         if confidence_miss:

@@ -10,6 +10,7 @@ Validate with `ciphergate validate-policy FILE` (never reads data).
 |---|---|---|---|
 | `policy_version` | `1` | required | other versions rejected |
 | `name` | slug `[a-z0-9][a-z0-9_.-]{0,63}` | required | also the default pseudonym namespace |
+| `extends` | list of shipped pack names (max 4) | `[]` | build on [policy packs](#layering-extends) |
 | `metadata` | mapping | `{}` | free-form extension namespace; not interpreted |
 | `context` | [Context](#context) | all unset | pinned context |
 | `requirements` | `{environment, target_environment, destination}` booleans | `true, false, true` | which context must be present (a run without a destination is still treated as untrusted; turning the requirement off warns) |
@@ -180,6 +181,73 @@ does not cover a run that also gives `--destination local_dev`. `approved_on` ca
 future. Requires `strict: true` and the rescan gate; validation always warns, and approvals do not
 expire automatically — review them. No shipped policy contains an
 approval. Rules still apply — an approval does not allow raw data through.
+
+## Layering (`extends`)
+
+A policy can build on shipped **packs** instead of repeating them:
+
+```yaml
+policy_version: 1
+name: my-hospital
+extends: [us_hipaa]          # us_hipaa itself extends healthcare_baseline
+context: {environment: prd, target_environment: external, destination: external_ai}
+classifications:
+  - {id: local-ids, field_names: [visit_number], category: pii.customer_identifier}
+```
+
+Shipped packs (`policies/packs/`, all **templates requiring review**):
+
+| Pack | Extends | What it adds |
+|---|---|---|
+| `healthcare_baseline` | — | Strict default for healthcare-style data anywhere: credentials hard-blocked; clinical values blocked toward external/unknown destinations and sent to review elsewhere; identifiers redacted; DOB and clinical dates cut to the year; internal infrastructure redacted; everything else review. Needs no key. |
+| `us_hipaa` | `healthcare_baseline` | Field classifications modelled on the 18 HIPAA Safe Harbor identifier types (geography, dates, ages, record/plan/account numbers, licenses, vehicles, devices, URLs, biometrics, photos); ages banded with 90 and over as `90+`. It is **not** Safe Harbor or Expert Determination by itself: the 3-digit ZIP allowance and the "no actual knowledge" condition are not implemented, binary photos/biometrics are not parsed, and free-text detection is incomplete. |
+
+`policies/hospital_us_override.yml` is an example third layer (`ciphergate init --template
+hospital_us_override`).
+
+**Resolution.** Names are compared to the shipped packs and never used as paths; local files
+cannot be extended in this release. Packs may extend packs (at most 4 levels, 8 layers; cycles
+are rejected). Layers are ordered base first, your policy last; a pack reached twice is used once.
+Every check in this document then runs on the merged policy.
+
+**Merge rules — a later layer can never quietly weaken an earlier one:**
+
+| Part | Merge | Rejected (validation error) |
+|---|---|---|
+| `context` | later layers may pin unset fields | pinning a different value (`layer_context_conflict`); `allow_cli_override` for a field an earlier layer pinned without allowing overrides (`layer_weakens_context`) |
+| `requirements` | any layer requiring a field requires it | setting `false` where an earlier layer has `true` (`layer_weakens_setting`) |
+| `settings` | stricter value kept: `strict`, `fail_on_parse_error`, `scan_json_keys`, `rescan.enabled` (true), `unknown_sensitive_behavior` (`block` > `review`), `csv_duplicate_headers` (`reject`), `malformed_record_action` (unset); `rescan.fail_on_categories` lists are combined (an unset value contributes every high-risk category) | a weaker value (`layer_weakens_setting`) |
+| `detectors` | custom detectors and internal host suffixes are added; enabling Presidio is allowed | disabling a detector or Presidio that an earlier layer runs, or turning off `reject_risky_regex` (`layer_weakens_detectors` / `layer_weakens_setting`) |
+| `custom_categories`, `transfers` | combined | — |
+| `classifications`, `rules` | combined | reusing an id from an earlier layer (`duplicate_id`) |
+| `defaults` | a later default replaces an earlier one for the same selector | a later default that would take over a category from an earlier default with a weaker action (`layer_weakens_default`) |
+| `name`, `metadata` | the last layer's | — |
+
+**Rules.** Actions are ranked `block` > `review` > any transform > `allow`. A later rule that
+[outranks](#precedence-deterministic) an earlier rule it may overlap with and picks a lower-ranked
+action fails with `layer_weakens_rule`. To do it on purpose, name the earlier rule in
+`relaxes`:
+
+```yaml
+rules:
+  - id: hospital-keep-state
+    priority: 300
+    match: {categories: [location.coarse], field_names: [state]}
+    action: allow
+    relaxes: ["defaults:location.*"]    # or an earlier rule id
+```
+
+Each relaxation is printed as a validation warning and appears in every run report's warnings.
+`hard` and `guardrail` rules from an earlier layer can **never** be relaxed. A later `allow` rule
+over categories an earlier non-allow default handles needs `relaxes: ["defaults:<selector>"]`.
+Swapping one transform for another (for example `pseudonymize` instead of `redact`) needs no
+`relaxes`. `relaxes` is rejected in a policy without `extends`, and must name a rule or default
+from an earlier layer.
+
+**Provenance.** `validate-policy` prints the layer chain. Reports add `policy.layers` (each
+layer's name, kind, source and file digest) and each decision's `layer`; `policy.digest` covers
+every layer in order, so editing any pack changes it. With `--path-display redacted` your own
+policy file name is hidden; shipped pack names are kept.
 
 ## Invalid examples
 

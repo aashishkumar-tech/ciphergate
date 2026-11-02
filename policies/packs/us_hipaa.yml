@@ -1,0 +1,80 @@
+# TEMPLATE REQUIRING REVIEW. Layering pack for US healthcare-style data, built on
+# healthcare_baseline. Its field list is modelled on the 18 identifier types named by the HIPAA
+# Safe Harbor method (45 CFR 164.514(b)(2)), but using this pack does NOT perform Safe Harbor or
+# Expert Determination and is not legal or compliance advice. Safe Harbor also requires that the
+# covered entity has no actual knowledge that the rest could identify a person; no tool can
+# check that. Detection is incomplete, especially in free text (names in notes need the optional
+# local NER extra and still miss some).
+#
+# Identifier type                          -> what this pack (plus the baseline) does
+#  1 names                                 -> field names + optional NER; redacted
+#  2 geography smaller than a state        -> street/city/county/ZIP fields redacted (the 3-digit
+#                                             ZIP allowance is NOT implemented: whole ZIP redacted)
+#  3 dates (except year) about a person    -> DOB and clinical dates reduced to the year;
+#    and ages over 89                         ages banded by 10 with 90 and over as "90+"
+#  4 phone, 5 fax, 6 email                 -> detected by pattern and field name; redacted
+#  7 SSN                                   -> pattern (ssn_pattern) and field name; redacted
+#  8 medical record, 9 health plan,        -> field names below; redacted (not pseudonymized: a
+# 10 account numbers                          keyed pseudonym is derived from the identifier, so
+#                                             it is not the re-identification code 164.514(c)
+#                                             describes)
+# 11 certificate/license numbers           -> field names; redacted
+# 12 vehicle ids, 13 device ids/serials    -> field names (+ MAC pattern); redacted
+# 14 URLs, 15 IP addresses                 -> URL fields, IP pattern/field names; redacted
+# 16 biometrics, 17 full-face photos       -> field names only (binary content is not parsed)
+# 18 any other unique identifying number   -> cannot be known generically: add your own
+#                                             classifications/detectors in your layer
+policy_version: 1
+name: us-hipaa
+extends: [healthcare_baseline]
+metadata:
+  description: "US healthcare pack modelled on the HIPAA Safe Harbor identifier list. Template requiring review; not Safe Harbor or Expert Determination by itself."
+  pack_version: 1
+custom_categories:
+  - pii.age
+  - pii.vehicle_identifier
+  - pii.biometric_identifier
+  - pii.full_face_photo
+  - pii.web_url
+classifications:
+  - id: us-geography
+    field_names: [city, county, town, zipcode, zip4, census_tract, census_block, precinct, geocode, neighborhood]
+    category: pii.address
+  - id: us-dates
+    field_names: [service_date, appointment_date, surgery_date, registration_date, enrollment_date, deceased_date]
+    category: health.clinical_date
+  - id: us-age
+    field_names: [age, patient_age, age_years, age_at_visit]
+    category: pii.age
+  - id: us-record-and-plan-numbers
+    field_names: [mrn, medical_record_number, chart_number, health_plan_id, health_plan_beneficiary_number, beneficiary_id, insurance_id, insurance_member_id, policy_number, medicare_id, medicaid_id, patient_account_number, billing_account_number]
+    category: pii.customer_identifier
+  - id: us-licenses
+    field_names: [license_number, certificate_number, drivers_license_number, dea_number, professional_license_number]
+    category: pii.government_id
+  - id: us-vehicles
+    field_names: [vin, vehicle_id, vehicle_identification_number, license_plate, plate_number]
+    category: pii.vehicle_identifier
+  - id: us-devices
+    field_names: [device_serial, device_serial_number, udi, implant_serial_number]
+    category: pii.device_identifier
+  - id: us-urls
+    field_names: [url, website, homepage, profile_url, personal_url]
+    category: pii.web_url
+  - id: us-biometrics
+    field_names: [fingerprint, voiceprint, retina_scan, iris_scan, biometric_template, face_template]
+    category: pii.biometric_identifier
+  - id: us-photos
+    field_names: [photo, photo_url, headshot, face_image, profile_photo]
+    category: pii.full_face_photo
+rules:
+  - id: us-age-band
+    priority: 300
+    match:
+      categories: [pii.age]
+    action: generalize
+    params:
+      strategy: age_band
+      band_size: 10
+      max_age: 90
+    reason: ages_over_89_aggregated_as_90_plus

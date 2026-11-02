@@ -88,6 +88,8 @@ def render_summary(report: RunReport, *, verbose: bool = False) -> str:
     for item in shown:
         dec = item["decision"]
         rule = dec.get("rule_id") or "-"
+        if dec.get("layer"):
+            rule = f"{rule} ({dec['layer']})"
         lines.append(
             f"    {_location(item['location'])}: {item['category']} "
             f"({item['band']}, {item['detector']}) -> {dec['action']} "
