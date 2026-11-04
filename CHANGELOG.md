@@ -6,6 +6,15 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Fixed
+
+- A healthcare `prior_authorization` (also `preAuthorization`, `pre_authorization`,
+  `prior_auth`) field was treated as a credential because its name ends in `authorization`, so
+  insurance claims were hard-blocked with no way to override. These names are now customer
+  identifiers (redacted by the usual rules). `authorization` itself and HTTP header names such
+  as `http_authorization` are still credentials, and a real token inside a prior authorization
+  field is still caught by the value patterns and blocks.
+
 ## [0.20.0] - 2026-11-05
 
 Allowlist mode: for CSV, JSON and JSONL a policy can list the fields that may stay and protect
