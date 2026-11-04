@@ -24,8 +24,7 @@ updates:
       interval: weekly
     labels: [dependencies, ci]
     # Actions are pinned to commit SHAs; Dependabot updates the SHA and its version comment.
-    groups:
-      github-actions:
-        patterns: ["*"]
+    # No `groups`: grouped titles ("... in the github-actions group across 1 directory") exceed
+    # the 72-character PR-title rule checked by CI.
     commit-message:
       prefix: ci
