@@ -1,7 +1,7 @@
 # CipherGate user guide (step by step)
 
 This guide walks you through CipherGate from install to a safe file you can share. Every command
-and output below was run on synthetic data with CipherGate 0.17.0.
+and output below was run on synthetic data with CipherGate 0.18.0.
 
 ## 1. What CipherGate does, in one picture
 
@@ -34,7 +34,7 @@ python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
 pip install ciphergate-cli
-ciphergate --version          # ciphergate 0.17.0
+ciphergate --version          # ciphergate 0.18.0
 ```
 
 ## 3. Pick a starting policy
@@ -212,8 +212,8 @@ classifications:
 ```
 
 You can also extend your own files: `extends: ["org/base.yml"]`. The path must stay inside the
-policy's folder. Local-file layers arrive in the release after 0.17.0; with 0.17.0 itself, use
-shipped packs only.
+policy's folder. Local-file layers need CipherGate 0.18.0 or later; 0.17.0 supports shipped
+packs only.
 
 A later layer can only make things stricter. To deliberately weaken a rule, name it in
 `relaxes:`; validation shows that as a warning. Hard and guardrail rules can never be relaxed.
