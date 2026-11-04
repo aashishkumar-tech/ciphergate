@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-11-05
+
+Fixes a leak introduced in 0.20.1: with the `local_debug` and `developer_logs` templates, an
+unrecognised secret in a prior or pre authorization field could be kept unchanged. Upgrade if
+you use 0.20.1.
+
 ### Fixed
 
 - Prior authorization field names are now `health.phi` instead of `pii.customer_identifier`.
@@ -543,7 +549,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.18.0...v0.19.0
