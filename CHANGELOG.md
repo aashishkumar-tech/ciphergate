@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-05
+
+Allowlist mode: for CSV, JSON and JSONL a policy can list the fields that may stay and protect
+every other value nothing recognised, so an unfamiliar file structure fails safe instead of
+passing through. It is off by default; existing policies behave as before.
+
 ### Added
 
 - Allowlist mode for CSV, JSON and JSONL: `settings.unrecognized_values: redact | review |
@@ -509,7 +515,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.16.0...v0.17.0
