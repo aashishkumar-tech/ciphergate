@@ -6,7 +6,7 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
-## [0.19.0] - 2026-11-04
+## [0.19.0] - 2026-11-05
 
 Nested JSON is scanned with more context: a value with a generic name such as `first`,
 `description` or `value` is judged by its parent's name, so names, diagnoses and lab results
