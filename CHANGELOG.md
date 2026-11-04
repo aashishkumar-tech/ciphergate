@@ -6,6 +6,11 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-04
+
+Your own policy files can now be layers, so an organisation can keep one shared layer and a
+small file per site. A step-by-step user guide is added. CI no longer tests macOS for now.
+
 ### Added
 
 - `extends` accepts local files as well as shipped packs, for example
@@ -15,6 +20,8 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   inline policies cannot extend local files, layer names must be distinct, and cycles are
   rejected. Reports list local layers with kind `file`, their relative path (hidden with
   `--path-display redacted`) and their digest.
+- `docs/user-guide.md`: a step-by-step guide from install through inspect, plan, sanitize,
+  rescan and review, with exit codes, keys and common problems (#87).
 
 ### Changed
 
@@ -470,7 +477,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.14.0...v0.15.0
