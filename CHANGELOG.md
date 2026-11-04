@@ -16,6 +16,13 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
   rejected. Reports list local layers with kind `file`, their relative path (hidden with
   `--path-display redacted`) and their digest.
 
+### Changed
+
+- CI no longer runs the macOS job, because hosted macOS runners were often unavailable and
+  blocked merges. macOS is not tested in CI until the job is re-added; it passed on every
+  completed run up to 0.17.0.
+- The PyPI upload action is pinned to `pypa/gh-action-pypi-publish` v1.14.3 (#88).
+
 ## [0.17.0] - 2026-11-02
 
 Policies can now be built in layers. A shipped baseline pack, a jurisdiction pack (US, EU or

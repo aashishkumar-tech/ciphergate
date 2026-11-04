@@ -103,8 +103,9 @@
 ## Platform
 
 - POSIX-only behaviours (0600 temp permissions, hard-link no-overwrite publish, directory fsync,
-  FIFO rejection, key-file permission checks) are tested on the Linux and macOS CI runners. CI
-  runs on Linux (Python 3.11-3.13), macOS (3.12) and Windows (3.12). Case-alias checks run on
+  FIFO rejection, key-file permission checks) are tested on the Linux CI runners. CI runs on
+  Linux (Python 3.11-3.13) and Windows (3.12); the macOS job is paused, so macOS is not
+  currently tested in CI (it passed while it ran, up to 0.17.0). Case-alias checks run on
   whichever filesystems are case-insensitive (default macOS APFS, Windows NTFS); a
   case-sensitive APFS volume behaves like Linux. On Windows the publish uses `os.rename` (fails
   if the target exists) and file ACLs are inherited.
