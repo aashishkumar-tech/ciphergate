@@ -135,6 +135,15 @@ _TERMS: list[_Term] = [
         "remote_user",
         exact="login",
     ),
+    # Healthcare prior authorization is an insurer's approval number, not a credential. As the
+    # longer term it wins over `authorization`, so these names are not hard-blocked; a real
+    # token inside them is still caught by the secret value patterns.
+    *_terms(
+        "pii.customer_identifier",
+        0.6,
+        suffix="prior_authorization pre_authorization prior_auth pre_auth",
+        exact="preauthorization priorauthorization",
+    ),
     *_terms(
         "employment.sensitive",
         0.7,
