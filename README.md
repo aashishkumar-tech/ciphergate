@@ -43,6 +43,9 @@ inspect  ->  plan  ->  sanitize --apply  ->  rescan
   regexes with safety checks. See [docs/detector-coverage.md](docs/detector-coverage.md).
 - **Policy engine:** strict versioned YAML schema, deterministic precedence, conflict rejection,
   credential hard constraints, environment/destination guardrails, fail-closed fallback.
+- **Allowlist mode (CSV/JSON/JSONL):** `settings.unrecognized_values` redacts, reviews or blocks
+  every value nothing recognised unless its field is listed under `keep`, so an unfamiliar
+  structure fails safe instead of passing through.
 - **Actions:** `allow`, `redact`, `replace`, `pseudonymize` (HMAC-SHA-256, scoped, versioned),
   `generalize` (year, year-month, age bands, coordinate rounding, numeric bins), `date_shift`
   (keyed, per-dataset or per-entity), `drop_field`, `drop_record`, `block`, `review`.

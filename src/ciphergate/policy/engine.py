@@ -21,6 +21,7 @@ from ciphergate.constants import (
     CREDENTIAL_CATEGORY,
     CREDENTIAL_PERMITTED_ACTIONS,
     LINE_FORMATS,
+    UNRECOGNIZED_DETECTOR,
     VALUE_TRANSFORM_ACTIONS,
     Action,
     InputFormat,
@@ -28,7 +29,7 @@ from ciphergate.constants import (
 )
 from ciphergate.models.context import EffectiveContext
 from ciphergate.models.finding import Finding
-from ciphergate.models.policy import ActionParams, EmptyParams
+from ciphergate.models.policy import ActionParams, EmptyParams, RedactParams
 from ciphergate.policy.precedence import (
     LEVEL_DEFAULT,
     LEVEL_FALLBACK,
@@ -93,6 +94,16 @@ class PolicyEngine:
         return self._apply_hard_constraints(decision, finding, ctx, fmt)
 
     def _select(self, finding: Finding, ctx: EffectiveContext, fmt: InputFormat) -> Decision:
+        if finding.detector == UNRECOGNIZED_DETECTOR:
+            # Allowlist mode: decided by the setting alone; fields are exempted through `keep`.
+            action = Action(self.policy.document.settings.unrecognized_values)
+            return Decision(
+                action=action,
+                reason_code=ReasonCode.UNRECOGNIZED_VALUE,
+                level=LEVEL_DEFAULT,
+                rule_id="settings:unrecognized_values",
+                params=RedactParams() if action == Action.REDACT else EmptyParams(),
+            )
         matched: list[CompiledRule] = []
         confidence_miss = False
         for rule in self.policy.rules:

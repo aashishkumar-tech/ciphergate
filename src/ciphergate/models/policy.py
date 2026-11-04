@@ -204,6 +204,9 @@ class RescanSettings(StrictModel):
 class PolicySettings(StrictModel):
     strict: bool = True
     unknown_sensitive_behavior: Literal["review", "block"] = "review"
+    # Allowlist mode for CSV/JSON/JSONL: a value no detector or classification recognised, in a
+    # field not listed under ``keep``, is redacted, sent to review or blocks the run.
+    unrecognized_values: Literal["off", "redact", "review", "block"] = "off"
     fail_on_parse_error: bool = True
     malformed_record_action: Literal["drop_record"] | None = None
     report_raw_values: Literal[False] = False
@@ -218,6 +221,12 @@ class PolicySettings(StrictModel):
         if value is True:
             raise ValueError("reporting raw values is not supported; reports never contain values")
         return value
+
+    @field_validator("unrecognized_values", mode="before")
+    @classmethod
+    def _yaml_off(cls, value: Any) -> Any:
+        # YAML 1.1 reads a bare `off` as false; `on`/`yes` (true) stay invalid: they are ambiguous.
+        return "off" if value is False else value
 
     @model_validator(mode="after")
     def _parse_errors(self) -> PolicySettings:
@@ -301,6 +310,17 @@ class Classification(StrictModel):
         if not self.field_names and not self.field_paths:
             raise ValueError("a classification needs field_names or field_paths")
         return self
+
+
+class Keep(StrictModel):
+    """Fields exempt from ``settings.unrecognized_values``. Detectors and rules still apply."""
+
+    field_names: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(
+        default_factory=list
+    )
+    field_paths: list[Annotated[str, Field(min_length=1, max_length=512)]] = Field(
+        default_factory=list
+    )
 
 
 class RuleMatch(StrictModel):
@@ -401,6 +421,7 @@ class PolicyDocument(StrictModel):
     detectors: DetectorSettings = Field(default_factory=DetectorSettings)
     custom_categories: list[str] = Field(default_factory=list)
     classifications: list[Classification] = Field(default_factory=list)
+    keep: Keep = Field(default_factory=Keep)
     rules: list[Rule] = Field(default_factory=list)
     defaults: dict[str, DefaultAction] = Field(default_factory=dict)
     transfers: list[Transfer] = Field(default_factory=list)

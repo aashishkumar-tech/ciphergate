@@ -219,7 +219,27 @@ A later layer can only make things stricter. To deliberately weaken a rule, name
 `relaxes:`; validation shows that as a warning. Hard and guardrail rules can never be relaxed.
 See [policy-schema.md](policy-schema.md#layering-extends).
 
-## 10. Common problems
+## 10. Unfamiliar file structure: list what may stay
+
+CipherGate normally changes only what it recognises. For a structure it doesn't know (FHIR, a
+custom export), protect **everything** except the fields you list:
+
+```yaml
+policy_version: 1
+name: my-fhir
+extends: ["my-hospital.yml"]
+settings:
+  unrecognized_values: redact     # or review / block
+keep:
+  field_names: [resourceType, type, status, intent, gender, system]
+```
+
+Every other value that no detector recognised becomes
+`[REDACTED:unknown.sensitive_candidate]`. If the AI needs a field to help you, add it to `keep`
+and run again. Kept fields are still scanned, so an email inside one is still removed. Works
+for CSV, JSON and JSONL only.
+
+## 11. Common problems
 
 | Message | What to do |
 |---|---|
@@ -230,7 +250,7 @@ See [policy-schema.md](policy-schema.md#layering-extends).
 | exit 1 with `blocked` | read the `next:` lines; usually a secret or a field your policy forbids for this destination |
 | `key_missing` (exit 6) | set `CIPHERGATE_HMAC_KEY` (section 7) |
 
-## 11. Where to read more
+## 12. Where to read more
 
 - [README](../README.md): the feature list and all commands
 - [policy-schema.md](policy-schema.md): every policy field
