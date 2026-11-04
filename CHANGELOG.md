@@ -6,6 +6,12 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-04
+
+Nested JSON is scanned with more context: a value with a generic name such as `first`,
+`description` or `value` is judged by its parent's name, so names, diagnoses and lab results
+inside nested health records are found. More data is redacted or blocked than in 0.18.0.
+
 ### Changed
 
 - Nested JSON: a value whose own name means nothing now inherits the category of its two
@@ -492,7 +498,8 @@ Pre-release (alpha). Licensed under Apache-2.0. Not a final release: the securit
 See `docs/limitations.md`. Deferred: optional NER/Presidio detectors, stdin/stdout streaming,
 directory processing, structured log parsers, key files, reversible token vault, lossy decoding.
 
-[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/aashishkumar-tech/ciphergate/compare/v0.15.0...v0.16.0

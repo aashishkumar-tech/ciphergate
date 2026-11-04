@@ -1,7 +1,7 @@
 # CipherGate user guide (step by step)
 
 This guide walks you through CipherGate from install to a safe file you can share. Every command
-and output below was run on synthetic data with CipherGate 0.18.0.
+and output below was run on synthetic data with CipherGate 0.19.0.
 
 ## 1. What CipherGate does, in one picture
 
@@ -34,7 +34,7 @@ python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
 pip install ciphergate-cli
-ciphergate --version          # ciphergate 0.18.0
+ciphergate --version          # ciphergate 0.19.0
 ```
 
 ## 3. Pick a starting policy
