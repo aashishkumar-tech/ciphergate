@@ -49,12 +49,10 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13"]
-        # macOS (re-added in #37 after the repository became public): case-insensitive APFS,
-        # /tmp -> /private/tmp symlinks and BSD permission semantics differ from Linux.
+        # macOS is paused: hosted macOS runners queued for long periods and blocked merges.
+        # To re-add, append `- {os: macos-latest, python: "3.12"}` below (see #37).
         include:
           - os: windows-latest
-            python: "3.12"
-          - os: macos-latest
             python: "3.12"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
