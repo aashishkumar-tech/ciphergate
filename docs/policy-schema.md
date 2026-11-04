@@ -18,6 +18,7 @@ Validate with `ciphergate validate-policy FILE` (never reads data).
 | `detectors` | [Detectors](#detectors) | | |
 | `custom_categories` | list of `prefix.name` | `[]` | must not duplicate built-ins |
 | `classifications` | list | `[]` | declare that fields contain a category |
+| `keep` | `{field_names, field_paths}` | empty | fields exempt from [allowlist mode](#allowlist-mode-unrecognized_values) |
 | `rules` | list of [Rule](#rules) | `[]` | |
 | `defaults` | map category-selector -> `{action, params, reason}` | `{}` | level 8 |
 | `transfers` | list of [Transfer](#transfers) | `[]` | reviewed PRD -> non-prod approvals |
@@ -41,6 +42,7 @@ A pinned value combined with a different caller value fails with
 |---|---|---|
 | `strict` | `true` | unknown context -> review; required for external/unknown/prd targets |
 | `unknown_sensitive_behavior` | `review` | fallback for findings no rule/default covers: `review` or `block` (never allow) |
+| `unrecognized_values` | `off` | [allowlist mode](#allowlist-mode-unrecognized_values) for CSV/JSON/JSONL: `redact`, `review` or `block` every value nothing recognised in a field not listed under `keep` |
 | `fail_on_parse_error` | `true` | malformed CSV rows / JSONL lines fail the run |
 | `malformed_record_action` | unset | required (`drop_record`) when `fail_on_parse_error: false` |
 | `report_raw_values` | `false` | `true` is rejected |
@@ -49,6 +51,37 @@ A pinned value combined with a different caller value fails with
 | `preserve_blank_lines` | `false` | blank CSV/JSONL lines are removed and counted otherwise |
 | `rescan.enabled` | `true` | residual gate before publishing |
 | `rescan.fail_on_categories` | high-risk set | categories whose unexpected residuals fail the gate. Must not be empty; `credential.secret` is always added; toward an untrusted or missing destination every high-risk category is added regardless |
+
+### Allowlist mode (`unrecognized_values`)
+
+By default CipherGate changes only what a detector, classification or field name recognises;
+everything else passes through. For data with unfamiliar structure (for example FHIR), turn
+this around: list the fields that may stay, and protect the rest.
+
+```yaml
+settings:
+  unrecognized_values: redact      # or review / block; default off
+keep:
+  field_names: [resourceType, status, gender, system]
+  field_paths: ["/meta/*"]         # fnmatch on the JSON Pointer / CSV header
+```
+
+* A value is **unrecognized** when no finding covers the whole value and its field is not
+  kept. It gets category `unknown.sensitive_candidate`, detector `unrecognized_value`, rule
+  `settings:unrecognized_values` and reason `unrecognized_value_not_kept`. Rules do not apply to
+  it; to let a field through, add it to `keep`.
+* A value with only a partial finding (a phone inside a note) is protected **whole**.
+* `keep` is not `allow`: detectors and rules still run on kept fields, so an email inside a
+  kept field is still redacted. An explicit rule decision (such as an `allow` for `state`)
+  still stands.
+* Numbers and booleans are protected too (their type changes to a string marker); empty
+  strings, nulls, JSON keys, CSV headers and CipherGate's own markers are not.
+* Supported for `csv`, `json` and `jsonl`. Any other format fails with
+  `unrecognized_values_unsupported_format` (exit 4) rather than running without it.
+* Quote `"off"` or leave it out: YAML reads a bare `off` as false, which is accepted as `off`.
+  `keep` while the mode is off gives a validation warning.
+* Layers: the stricter mode is kept (`block` > `review` > `redact` > `off`). `keep` entries are
+  combined; a layer that adds them after an earlier layer turned the mode on gets a warning.
 
 ## Detectors
 
@@ -241,10 +274,11 @@ Every check in this document then runs on the merged policy.
 |---|---|---|
 | `context` | later layers may pin unset fields | pinning a different value (`layer_context_conflict`); `allow_cli_override` for a field an earlier layer pinned without allowing overrides (`layer_weakens_context`) |
 | `requirements` | any layer requiring a field requires it | setting `false` where an earlier layer has `true` (`layer_weakens_setting`) |
-| `settings` | stricter value kept: `strict`, `fail_on_parse_error`, `scan_json_keys`, `rescan.enabled` (true), `unknown_sensitive_behavior` (`block` > `review`), `csv_duplicate_headers` (`reject`), `malformed_record_action` (unset); `rescan.fail_on_categories` lists are combined (an unset value contributes every high-risk category) | a weaker value (`layer_weakens_setting`) |
+| `settings` | stricter value kept: `strict`, `fail_on_parse_error`, `scan_json_keys`, `rescan.enabled` (true), `unknown_sensitive_behavior` (`block` > `review`), `unrecognized_values` (`block` > `review` > `redact` > `off`), `csv_duplicate_headers` (`reject`), `malformed_record_action` (unset); `rescan.fail_on_categories` lists are combined (an unset value contributes every high-risk category) | a weaker value (`layer_weakens_setting`) |
 | `detectors` | custom detectors and internal host suffixes are added; enabling Presidio is allowed | disabling a detector or Presidio that an earlier layer runs, or turning off `reject_risky_regex` (`layer_weakens_detectors` / `layer_weakens_setting`) |
 | `custom_categories`, `transfers` | combined | — |
 | `classifications`, `rules` | combined | reusing an id from an earlier layer (`duplicate_id`) |
+| `keep` | combined (a warning when added after an earlier layer turned allowlist mode on) | — |
 | `defaults` | a later default replaces an earlier one for the same selector | a later default that would take over a category from an earlier default with a weaker action (`layer_weakens_default`) |
 | `name`, `metadata` | the last layer's | — |
 

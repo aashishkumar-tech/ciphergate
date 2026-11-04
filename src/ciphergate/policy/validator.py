@@ -664,6 +664,8 @@ def compile_policy(
         )
     if not doc.settings.strict:
         warnings.append("settings.strict is false: unknown context will not force review")
+    if doc.settings.unrecognized_values == "off" and (doc.keep.field_names or doc.keep.field_paths):
+        warnings.append("keep has no effect while settings.unrecognized_values is 'off'")
     if doc.context.allow_cli_override:
         warnings.append(
             "context.allow_cli_override permits CLI values to replace pinned context: "

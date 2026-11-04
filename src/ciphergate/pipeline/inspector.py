@@ -6,18 +6,29 @@ predicts exactly the decisions that apply mode executes.
 
 from __future__ import annotations
 
+import fnmatch
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ciphergate.config import RuntimeSettings
-from ciphergate.constants import STACK_TRACE_DETECTOR, Action, InputFormat, ReasonCode
+from ciphergate.constants import (
+    STACK_TRACE_DETECTOR,
+    UNKNOWN_CANDIDATE_CATEGORY,
+    UNRECOGNIZED_DETECTOR,
+    UNRECOGNIZED_VALUE_FORMATS,
+    Action,
+    InputFormat,
+    ReasonCode,
+)
 from ciphergate.detectors.base import is_ciphergate_token, make_finding
+from ciphergate.detectors.field_names import normalize_field_name
 from ciphergate.detectors.registry import (
     FIELD_CONTEXT_DETECTORS,
     DetectorSet,
     TextBlockState,
 )
+from ciphergate.errors import InputFormatError
 from ciphergate.models.context import ContextInput, EffectiveContext
 from ciphergate.models.finding import Finding, ScanItem
 from ciphergate.pipeline.paths import validate_input_path
@@ -86,6 +97,15 @@ def prepare_run(
     path = Path(input_path)
     validate_input_path(path, runtime.max_input_bytes)
     detected = detect_format(path, fmt, runtime.extension_formats)
+    if (
+        policy.document.settings.unrecognized_values != "off"
+        and str(detected) not in UNRECOGNIZED_VALUE_FORMATS
+    ):
+        raise InputFormatError(
+            f"settings.unrecognized_values supports only csv, json and jsonl input, not "
+            f"{detected}; use a policy without it for this format",
+            code="unrecognized_values_unsupported_format",
+        )
     options = ReaderOptions(
         runtime=runtime,
         policy_settings=policy.document.settings,
@@ -110,6 +130,10 @@ class Analyzer:
         self.text_state = TextBlockState()
         self.trace_state = TraceState()
         self._single_json_document = isinstance(reader, JSONReader)
+        document = setup.policy.document
+        self._unrecognized = document.settings.unrecognized_values != "off"
+        self._keep_names = frozenset(normalize_field_name(n) for n in document.keep.field_names)
+        self._keep_paths = tuple(document.keep.field_paths)
 
     def analyze(self, record: Record) -> list[tuple[ScanItem, Evaluated]]:
         return self._analyze_items(self.reader.iter_items(record))
@@ -135,6 +159,16 @@ class Analyzer:
                 findings = self._scan_structured_line(item, STRUCTURED_LINE_FORMATS[setup.fmt])
             else:
                 findings = setup.detectors.scan(item)
+                if self._unrecognized and self._is_unrecognized(item, findings):
+                    findings.append(
+                        make_finding(
+                            item,
+                            category=UNKNOWN_CANDIDATE_CATEGORY,
+                            detector=UNRECOGNIZED_DETECTOR,
+                            confidence=0.5,
+                            evidence=("no_whole_value_finding", "field_not_kept"),
+                        )
+                    )
             if not findings:
                 continue
             evaluated = [
@@ -143,6 +177,19 @@ class Analyzer:
             ]
             out.append((item, evaluated))
         return out
+
+    def _is_unrecognized(self, item: ScanItem, findings: list[Finding]) -> bool:
+        """A value of a field not kept, with no finding that covers the whole value."""
+        if item.in_key or item.record_index < 0 or item.is_empty:
+            return False
+        if isinstance(item.value, str) and is_ciphergate_token(item.value):
+            return False
+        if any(f.whole_value for f in findings):
+            return False
+        name = normalize_field_name(item.field_name) if item.field_name else ""
+        if name and name in self._keep_names:
+            return False
+        return not any(fnmatch.fnmatchcase(item.field_path, p) for p in self._keep_paths)
 
     def _scan_logfmt_line(self, item: ScanItem) -> list[Finding]:
         """Text-mode scan of the whole line, plus field context from the key=value parse."""

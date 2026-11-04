@@ -6,6 +6,17 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Added
+
+- Allowlist mode for CSV, JSON and JSONL: `settings.unrecognized_values: redact | review |
+  block` protects every value no detector, classification or field name recognised, unless its
+  field is listed under the new top-level `keep: {field_names, field_paths}`. A value with only
+  a partial finding is protected whole. Kept fields are still scanned. The decision is reported
+  with rule `settings:unrecognized_values` and reason `unrecognized_value_not_kept`. Other input
+  formats fail with `unrecognized_values_unsupported_format` instead of running without it.
+  Layers keep the stricter mode and combine `keep` entries, with a warning when a later layer
+  adds them. Default `off`, so existing policies behave as before.
+
 ## [0.19.0] - 2026-11-05
 
 Nested JSON is scanned with more context: a value with a generic name such as `first`,

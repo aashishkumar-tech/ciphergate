@@ -96,6 +96,10 @@ LINE_FORMATS = frozenset(
 
 # Findings for stack-trace frames and source lines (--format stacktrace); not a DetectorSet member.
 STACK_TRACE_DETECTOR = "stack_trace"
+# Emitted for structured values no detector recognised when ``settings.unrecognized_values`` is on.
+UNRECOGNIZED_DETECTOR = "unrecognized_value"
+# Input formats where every value has its own field, so unrecognized values can be protected.
+UNRECOGNIZED_VALUE_FORMATS = ("csv", "json", "jsonl")
 
 
 class Action(StrEnum):
@@ -238,6 +242,7 @@ class ReasonCode(StrEnum):
     PARSE_ERROR = "parse_error"
     SIZE_LIMIT_EXCEEDED = "size_limit_exceeded"
     RESIDUAL_FINDING = "residual_finding"
+    UNRECOGNIZED_VALUE = "unrecognized_value_not_kept"
 
 
 class ExitCode(IntEnum):

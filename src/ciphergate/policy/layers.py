@@ -65,6 +65,7 @@ _STRICT_TRUE = ("strict", "fail_on_parse_error", "scan_json_keys")
 # For ordered settings, a higher index is stricter.
 _ORDERED: dict[str, tuple[Any, ...]] = {
     "unknown_sensitive_behavior": ("review", "block"),
+    "unrecognized_values": ("off", "redact", "review", "block"),
     "csv_duplicate_headers": ("disambiguate", "reject"),
     "malformed_record_action": ("drop_record", None),
 }
@@ -291,6 +292,7 @@ class _Merger:
             where = f"layer[{name}]"
             self._context(merged["context"], doc, where, pinned_by, name)
             self._requirements(merged["requirements"], doc, where)
+            allowlist_before = merged["settings"]["unrecognized_values"] != "off"
             self._settings(merged["settings"], doc, where)
             self._detectors(merged["detectors"], doc, where)
             for cat in doc.custom_categories:
@@ -328,6 +330,7 @@ class _Merger:
                 earlier_defaults[sel] = (name, spec.action)
             earlier_rules.extend((name, r) for r in doc.rules)
             merged["transfers"].extend(t.model_dump() for t in doc.transfers)
+            self._keep(merged["keep"], doc, where, allowlist_before=allowlist_before)
             merged["name"] = doc.name
             merged["metadata"] = doc.metadata
             merged["extends"] = doc.extends
@@ -407,6 +410,24 @@ class _Merger:
                 self._rescan(settings["rescan"], later.rescan, where)
             else:  # preserve_blank_lines, report_raw_values (always False): later wins
                 settings[key] = value
+
+    def _keep(
+        self, keep: dict[str, Any], doc: PolicyDocument, where: str, *, allowlist_before: bool
+    ) -> None:
+        """Keep entries add up; one added after allowlist mode is on is a visible relaxation."""
+        added = [
+            entry
+            for key in ("field_names", "field_paths")
+            for entry in getattr(doc.keep, key)
+            if entry not in keep[key]
+        ]
+        for key in ("field_names", "field_paths"):
+            keep[key].extend(e for e in getattr(doc.keep, key) if e not in keep[key])
+        if added and allowlist_before:
+            self.warnings.append(
+                f"{where}.keep exempts {len(added)} field selector(s) from "
+                "settings.unrecognized_values set by an earlier layer"
+            )
 
     def _rescan(self, rescan: dict[str, Any], later: Any, where: str) -> None:
         if "enabled" in later.model_fields_set:
