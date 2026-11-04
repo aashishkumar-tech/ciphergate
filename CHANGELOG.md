@@ -6,6 +6,21 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Changed
+
+- Nested JSON: a value whose own name means nothing now inherits the category of its two
+  nearest named ancestors, so `name/first`, `diagnoses/0/description`, `lab_results/0/value`
+  and `address/country` are found. The inherited finding has 0.1 lower confidence, evidence
+  `parent_field_name`, and the ancestor's name as its field name, so rules with
+  `field_names: [diagnoses]` apply to the children too (the healthcare packs now block nested
+  diagnoses for external destinations). Credentials, telemetry and customer identifiers are not
+  inherited, and a policy classification of the value itself wins. More data is redacted or
+  blocked than before for nested JSON.
+- New field-name terms: `diagnoses`, `icd10`, `lab_results`, `test_results`, `vitals`,
+  `vital_signs`, `problem_list`, `symptoms`, `blood_group`, `blood_type`, `prescriptions`
+  (`health.phi`); `physician`, `doctor`, `clinician` (`pii.person_name`); `device_identifier(s)`
+  (`pii.device_identifier`).
+
 ## [0.18.0] - 2026-11-04
 
 Your own policy files can now be layers, so an organisation can keep one shared layer and a

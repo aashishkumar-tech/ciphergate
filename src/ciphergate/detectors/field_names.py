@@ -5,10 +5,19 @@ A term matches when the normalized name equals it, or — for suffix-capable ter
 ``_<term>``. The longest matching term wins, so ``server_ip_address`` is an IP address rather
 than a postal address. Names like ``token_count``, ``key_name`` or ``monkey`` deliberately do not
 match: this is a heuristic, not a universal dictionary.
+
+Parent context: when a JSON value's own name matches nothing (``name/first``,
+``diagnoses/0/description``, ``lab_results/0/value``), the nearest named ancestors are tried
+(``PARENT_CONTEXT_DEPTH``, array indices skipped). Only categories in
+``PARENT_CONTEXT_CATEGORIES`` are inherited, at a lower confidence, and the finding carries the
+ancestor's name as its field name so rules with ``field_names`` match it. Credentials and
+telemetry are not inherited: those are judged by value detectors, and inheriting a ``block``
+from a parent such as ``token`` would stop runs on harmless children like ``expires_in``.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import fnmatch
 import re
 from dataclasses import dataclass
@@ -66,6 +75,7 @@ _TERMS: list[_Term] = [
         suffix="first_name last_name full_name given_name family_name surname middle_name "
         "patient_name employee_name customer_name contact_name maiden_name",
     ),
+    *_terms("pii.person_name", 0.6, suffix="physician doctor clinician"),
     *_terms("pii.person_name", 0.45, exact="name"),
     *_terms("pii.date_of_birth", 0.85, suffix="dob date_of_birth birth_date birthdate birthday"),
     *_terms(
@@ -89,8 +99,10 @@ _TERMS: list[_Term] = [
     *_terms(
         "health.phi",
         0.75,
-        suffix="diagnosis medication medications medical_record medical_record_number patient_id "
-        "icd_code procedure_code allergies prescription clinical_notes",
+        suffix="diagnosis diagnoses medication medications medical_record medical_record_number "
+        "patient_id icd_code icd10 icd_10 procedure_code allergies prescription prescriptions "
+        "clinical_notes lab_result lab_results test_result test_results vitals vital_signs "
+        "problem_list symptoms blood_group blood_type",
         exact="mrn patient condition claim claim_id",
     ),
     *_terms(
@@ -113,7 +125,8 @@ _TERMS: list[_Term] = [
     *_terms(
         "pii.device_identifier",
         0.7,
-        suffix="device_id mac_address imei advertising_id idfa serial_number device_token",
+        suffix="device_id device_identifier device_identifiers mac_address imei advertising_id "
+        "idfa serial_number device_token",
     ),
     *_terms(
         "pii.customer_identifier",
@@ -153,6 +166,35 @@ def classify_field_name(name: str) -> _Term | None:
     return best
 
 
+PARENT_CONTEXT_DEPTH = 2
+PARENT_CONTEXT_PENALTY = 0.1
+PARENT_CONTEXT_EVIDENCE = "parent_field_name"
+PARENT_CONTEXT_CATEGORIES = frozenset(
+    {
+        "pii.person_name",
+        "pii.email",
+        "pii.phone",
+        "pii.address",
+        "pii.date_of_birth",
+        "pii.government_id",
+        "pii.payment_card",
+        "pii.bank_account",
+        "pii.precise_location",
+        "pii.device_identifier",
+        "health.phi",
+    }
+)
+
+
+def ancestor_names(field_path: str) -> list[str]:
+    """Nearest named ancestors of a JSON Pointer, closest first; array indices are skipped."""
+    if not field_path.startswith("/"):
+        return []
+    segments = [s.replace("~1", "/").replace("~0", "~") for s in field_path.split("/")[1:-1]]
+    named = [s for s in reversed(segments) if s and not s.isdigit()]
+    return named[:PARENT_CONTEXT_DEPTH]
+
+
 def _has_protectable_value(item: ScanItem) -> bool:
     if item.is_empty:
         return False
@@ -167,7 +209,7 @@ class FieldNameDetector:
             return []
         term = classify_field_name(item.field_name)
         if term is None:
-            return []
+            return self._parent_context(item)
         evidence = (
             ("field_name_match",)
             if not term.suffix or normalize_field_name(item.field_name) == term.term
@@ -182,6 +224,21 @@ class FieldNameDetector:
                 evidence=evidence,
             )
         ]
+
+    def _parent_context(self, item: ScanItem) -> list[Finding]:
+        for name in ancestor_names(item.field_path):
+            term = classify_field_name(name)
+            if term is not None and term.category in PARENT_CONTEXT_CATEGORIES:
+                return [
+                    make_finding(
+                        dataclasses.replace(item, field_name=name),
+                        category=term.category,
+                        detector=self.id,
+                        confidence=term.confidence - PARENT_CONTEXT_PENALTY,
+                        evidence=("field_name_match", PARENT_CONTEXT_EVIDENCE),
+                    )
+                ]
+        return []
 
 
 class PolicyClassificationDetector:
