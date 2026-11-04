@@ -136,13 +136,15 @@ _TERMS: list[_Term] = [
         exact="login",
     ),
     # Healthcare prior authorization is an insurer's approval number, not a credential. As the
-    # longer term it wins over `authorization`, so these names are not hard-blocked; a real
-    # token inside them is still caught by the secret value patterns.
+    # longer term it wins over `authorization`, so these names are not hard-blocked. They are
+    # health.phi rather than a customer identifier because no shipped template allows a health
+    # category, so an opaque secret no value pattern recognises is still redacted, never kept.
+    # The short forms match exact names only, so flags like `requires_prior_auth` stay unmatched.
     *_terms(
-        "pii.customer_identifier",
+        "health.phi",
         0.6,
-        suffix="prior_authorization pre_authorization prior_auth pre_auth",
-        exact="preauthorization priorauthorization",
+        suffix="prior_authorization pre_authorization",
+        exact="prior_auth pre_auth preauthorization priorauthorization",
     ),
     *_terms(
         "employment.sensitive",

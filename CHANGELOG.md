@@ -6,6 +6,20 @@ versioning: [PEP 440](https://peps.python.org/pep-0440/) with SemVer meaning (pr
 
 ## [Unreleased]
 
+### Fixed
+
+- Prior authorization field names are now `health.phi` instead of `pii.customer_identifier`.
+  The `local_debug` and `developer_logs` templates allow customer identifiers, so in 0.20.1 an
+  opaque secret that no value pattern recognises in a field such as `x_pre_authorization` could
+  be kept unchanged (before 0.20.1 that field was a credential and was redacted). No shipped
+  template allows a health category, so these values are redacted again.
+- `prior_auth` and `pre_auth` now match only as whole names, so flags such as
+  `requires_prior_auth: true` or `needsPreAuth` are no longer redacted.
+- Correction to the 0.20.1 entry: only names ending in `prior_authorization` or
+  `pre_authorization` were previously credentials. `prior_auth`, `pre_auth`,
+  `preauthorization` and `priorauthorization` were previously unclassified; 0.20.1 started
+  flagging them.
+
 ## [0.20.1] - 2026-11-05
 
 Fixes insurance claim files being blocked because a prior authorization number was treated as a
