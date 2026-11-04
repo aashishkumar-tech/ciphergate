@@ -8,7 +8,11 @@ from ciphergate.detectors.base import Detector, make_finding
 from ciphergate.detectors.custom_regex import CustomRegexDetector
 from ciphergate.detectors.dates import DateDetector
 from ciphergate.detectors.email import EmailDetector, is_reserved_email_domain
-from ciphergate.detectors.field_names import FieldNameDetector, PolicyClassificationDetector
+from ciphergate.detectors.field_names import (
+    PARENT_CONTEXT_EVIDENCE,
+    FieldNameDetector,
+    PolicyClassificationDetector,
+)
 from ciphergate.detectors.iban import IbanDetector
 from ciphergate.detectors.ip_address import IPAddressDetector
 from ciphergate.detectors.mac_address import MacAddressDetector
@@ -58,6 +62,13 @@ class TextBlockState:
     in_private_key_block: bool = False
 
 
+def _drop_overridden_parent_context(findings: list[Finding]) -> list[Finding]:
+    """An explicit policy classification of the value itself beats an inherited parent name."""
+    if not any(f.detector == "policy_classification" for f in findings):
+        return findings
+    return [f for f in findings if PARENT_CONTEXT_EVIDENCE not in f.evidence]
+
+
 def _overlaps(a: tuple[int, int], b: tuple[int, int]) -> bool:
     return a[0] < b[1] and b[0] < a[1]
 
@@ -97,7 +108,7 @@ class DetectorSet:
         findings: list[Finding] = []
         for detector in self.detectors:
             findings.extend(detector.detect(item))
-        return self._post_process(findings)
+        return self._post_process(_drop_overridden_parent_context(findings))
 
     def scan_field_context(self, item: ScanItem) -> list[Finding]:
         """Only the detectors that judge a value by its field name/path (logfmt keys)."""
@@ -105,7 +116,7 @@ class DetectorSet:
         for detector in self.detectors:
             if detector.id in FIELD_CONTEXT_DETECTORS:
                 findings.extend(detector.detect(item))
-        return findings
+        return _drop_overridden_parent_context(findings)
 
     def scan_text_line(self, item: ScanItem, state: TextBlockState) -> list[Finding]:
         """Scan one text/log line, tracking multi-line private key blocks across lines."""
