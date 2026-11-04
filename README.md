@@ -584,6 +584,8 @@ Supported API: `load_policy`, `validate_policy`, `inspect_file`, `plan_file`, `s
 
 ## Documentation
 
+New here? Start with the step-by-step [User guide](docs/user-guide.md).
+
 [Architecture](docs/architecture.md) · [Policy schema](docs/policy-schema.md) ·
 [Detector coverage](docs/detector-coverage.md) · [Threat model](docs/threat-model.md) ·
 [Security & privacy](docs/security-and-privacy.md) · [Limitations](docs/limitations.md) ·
